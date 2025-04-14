@@ -15,6 +15,8 @@
     "build": "npm run build:contracts && npm run build:calc-lib && npm run build:web-client && npm run build:landing-page && npm run build:api-server",
     "dev:web-client": "npm run dev -w @chainrater/web-client",
     "dev:api-server": "npm run dev -w @chainrater/api-server",
+    "dev:landing-page": "npm run dev -w @chainrater/landing-page",
+    "start:landing-page": "npm run start -w @chainrater/landing-page",
     "test:contracts": "forge test --root contracts",
     "generate-types": "typechain --target=ethers-v5 'contracts/out/**/*.json' --out-dir shared/types/contracts"
   },
