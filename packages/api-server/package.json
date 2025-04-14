@@ -5,10 +5,17 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "robert.e.davidson3",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "@chainrater/calc-lib": "^0.1.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.1.1"
+  }
 }

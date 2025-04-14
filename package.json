@@ -1,12 +1,13 @@
 {
   "name": "chainrater",
   "private": true,
+  "type": "module",
   "workspaces": [
     "packages/*",
     "shared/*"
   ],
   "scripts": {
-    "build:contracts": "forge build",
+    "build:contracts": "forge build --root contracts",
     "build:calc-lib": "npm run build -w @chainrater/calc-lib",
     "build:web-client": "npm run build -w @chainrater/web-client",
     "build:landing-page": "npm run build -w @chainrater/landing-page",
@@ -14,7 +15,14 @@
     "build": "npm run build:contracts && npm run build:calc-lib && npm run build:web-client && npm run build:landing-page && npm run build:api-server",
     "dev:web-client": "npm run dev -w @chainrater/web-client",
     "dev:api-server": "npm run dev -w @chainrater/api-server",
-    "test:contracts": "forge test",
-    "generate-types": "typechain --target=ethers-v5 'out/**/*.json' --out-dir shared/types/contracts"
+    "test:contracts": "forge test --root contracts",
+    "generate-types": "typechain --target=ethers-v5 'contracts/out/**/*.json' --out-dir shared/types/contracts"
+  },
+  "devDependencies": {
+    "@typechain/ethers-v5": "^11.1.2",
+    "eslint": "^9.24.0",
+    "prettier": "^3.5.3",
+    "typechain": "^8.3.2",
+    "typescript": "^5.8.3"
   }
 }
