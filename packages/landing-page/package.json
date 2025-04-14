@@ -1,0 +1,14 @@
+{
+  "name": "@chainrater/landing-page",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "robert.e.davidson3",
+  "license": "ISC",
+  "description": ""
+}
