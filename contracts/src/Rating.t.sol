@@ -14,6 +14,8 @@ contract RatingTest is Test {
 
     fallback() external payable {}
 
+    receive() external payable {}
+
     function setUp() public {
         ratings = new Ratings();
         user1 = address(0x1111);
