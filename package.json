@@ -18,12 +18,14 @@
     "dev:landing-page": "npm run dev -w @chainrater/landing-page",
     "start:landing-page": "npm run start -w @chainrater/landing-page",
     "test:contracts": "forge test --root contracts",
-    "generate-types": "typechain --target=ethers-v5 'contracts/out/**/*.json' --out-dir shared/types/contracts"
+    "generate-types": "typechain --target=ethers-v5 'contracts/out/**/*.json' --out-dir shared/types/contracts",
+    "format:contracts": "prettier --write --no-error-on-unmatched-pattern --plugin=prettier-plugin-solidity contracts/{lib,script,src,test}/*.sol"
   },
   "devDependencies": {
     "@typechain/ethers-v5": "^11.1.2",
     "eslint": "^9.24.0",
     "prettier": "^3.5.3",
+    "prettier-plugin-solidity": "^1.4.2",
     "typechain": "^8.3.2",
     "typescript": "^5.8.3"
   }

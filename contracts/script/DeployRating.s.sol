@@ -7,11 +7,11 @@ import "../src/Rating.sol";
 contract DeployRatings is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        
+
         vm.startBroadcast(deployerPrivateKey);
         Ratings rating = new Ratings();
         vm.stopBroadcast();
-        
+
         console.log("Rating contract deployed at: ", address(rating));
     }
 }
