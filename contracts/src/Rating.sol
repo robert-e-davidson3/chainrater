@@ -1,18 +1,108 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-contract Rating {
-    mapping(address => uint256) public ratings;
+contract Ratings {
+  uint64 public constant STAKE_PER_SECOND = 16; // 16 wei
+  uint64 public constant MIN_STAKE = STAKE_PER_SECOND * 1 weeks;
+
+  // URI hash -> account -> rating
+  // The URI hash is a keccak256 of the full URI
+  mapping(bytes32 => mapping(address => Rating)) public ratings;
+  
+  struct Rating {
+    uint8 score;
+    uint64 posted;
+    uint64 stake; // denominated in 16 wei
+  }
+
+  event RatingSubmitted(bytes32 indexed uri, address indexed rater, uint8 score, uint64 stake);
+
+  error InvalidRating(uint8 rating);
+
+  error InvalidStake(uint64 stake);
+
+  error RatingIsStillValid(uint64 posted, uint64 stake);
+
+  error InvalidRater(address rater);
+
+  error NoSuchRating(bytes32 uri, address rater);
+  
+  // Add a new rating.
+  // May overwrite existing rating. You get your stake back in that case.
+  function submitRating(bytes32 uri, uint8 score) external payable {
+    if (!validRating(score)) {
+      revert InvalidRating(score);
+    }
+
+    uint64 stake = uint64(msg.value);
+
+    if (!validStake(stake)) {
+      revert InvalidStake(stake);
+    }
+        
+    // Return previous stake if replacing existing rating.
+    uint64 rebate = ratings[uri][msg.sender].stake;
+    if (rebate > 0) {
+      ratings[uri][msg.sender].stake = 0; // prevent re-entrancy
+      pay(msg.sender, rebate);
+    }
+
+    ratings[uri][msg.sender] = Rating({
+      score: score,
+      posted: uint64(block.timestamp),
+      stake: stake
+      });
+
+    emit RatingSubmitted(uri, msg.sender, score, stake);
+  }
+
+  // Remove your own rating, and get your stake back.
+  function removeRating(bytes32 uri) external {
+    uint64 stake = ratings[uri][msg.sender].stake;
+    if (stake == 0) {
+      revert NoSuchRating(uri, msg.sender);
+    }
+
+    ratings[uri][msg.sender].stake = 0; // prevent re-entrancy
+    pay(msg.sender, stake);
+
+    delete ratings[uri][msg.sender];
+  }
+
+  // Remove someone else's rating - get their stake.
+  function cleanupRating(bytes32 uri, address rater) external {
+    if (rater == address(0)) {
+      revert InvalidRater(rater);
+    }
+
+    Rating storage rating = ratings[uri][rater];
     
-    event RatingSubmitted(address indexed rater, address indexed target, uint256 rating);
-    
-    function submitRating(address target, uint256 rating) external {
-        require(rating >= 1 && rating <= 5, "Rating must be between 1 and 5");
-        ratings[target] = rating;
-        emit RatingSubmitted(msg.sender, target, rating);
+    if (rating.posted + lengthOfStake(rating.stake) > block.timestamp) {
+      revert RatingIsStillValid(rating.posted, rating.stake);
     }
     
-    function getRating(address target) external view returns (uint256) {
-        return ratings[target];
-    }
+    uint64 stake = rating.stake;
+    delete ratings[uri][rater]; // prevent re-entrancy
+    pay(rater, stake);
+  }
+    
+  function getRating(bytes32 uri, address rater) external view returns (Rating memory) {
+    return ratings[uri][rater];
+  }
+
+  function pay(address recipient, uint64 stake) internal {
+    payable(recipient).transfer(uint256(stake) * STAKE_PER_SECOND);
+  }
+
+  function validRating(uint8 rating) internal pure returns (bool) {
+    return rating >= 1 && rating <= 5;
+  }
+
+  function validStake(uint64 stake) internal pure returns (bool) {
+    return stake >= MIN_STAKE && stake % STAKE_PER_SECOND == 0;
+  }
+
+  function lengthOfStake(uint64 stake) internal pure returns (uint64) {
+    return stake / STAKE_PER_SECOND;
+  }
 }

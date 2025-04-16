@@ -5,21 +5,22 @@ import "forge-std/Test.sol";
 import "../src/Rating.sol";
 
 contract RatingTest is Test {
-    Rating public rating;
+    Ratings public ratings;
     
     function setUp() public {
-        rating = new Rating();
+        ratings = new Ratings();
     }
     
     function testSubmitRating() public {
-        address target = address(0x1);
-        rating.submitRating(target, 5);
-        assertEq(rating.getRating(target), 5);
-    }
-    
-    function testInvalidRating() public {
-        address target = address(0x1);
-        vm.expectRevert("Rating must be between 1 and 5");
-        rating.submitRating(target, 6);
+        bytes32 uri = keccak256("place://Five Guys");
+        uint8 score = 5;
+        uint64 stake = ratings.MIN_STAKE();
+
+        ratings.submitRating{value: stake}(uri,score);
+
+        Ratings.Rating memory r = ratings.getRating(uri, address(this));
+        assertEq(r.score, score);
+        assertEq(r.stake, stake);
+        assertEq(r.posted, block.timestamp);
     }
 }
