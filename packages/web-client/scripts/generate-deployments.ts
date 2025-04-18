@@ -27,7 +27,7 @@ function main(): void {
   // Path configuration
   const projectRoot = path.resolve(__dirname, "../../..");
   const contractsDir = path.join(projectRoot, "contracts");
-  const outputDir = path.join(projectRoot, "packages/web-client/public");
+  const outputDir = path.join(projectRoot, "packages/web-client/src");
   const outputFile = path.join(outputDir, "deployments.json");
 
   // Ensure output directory exists

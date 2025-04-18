@@ -1,4 +1,4 @@
-declare module '../../public/deployments.json' {
+declare module "../../src/deployments.json" {
   interface ContractData {
     abi: any[];
     addresses: Record<number, string>;
