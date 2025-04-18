@@ -4,7 +4,7 @@ pragma solidity ^0.8.21;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
-import "../src/Rating.sol";
+import "../src/Ratings.sol";
 
 contract RatingTest is Test {
     Ratings public ratings;
