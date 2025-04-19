@@ -1,4 +1,4 @@
-import { ethers } from 'ethers';
+import { formatEther, keccak256, stringToHex } from 'viem';
 
 export function shortenAddress(address: string): string {
   if (!address || address.length < 10) return address;
@@ -10,7 +10,7 @@ export function formatETH(amount: bigint | number): string {
     amount = BigInt(amount);
   }
   
-  const formatted = ethers.utils.formatEther(amount.toString());
+  const formatted = formatEther(amount);
   // Remove trailing zeros after decimal point
   const parts = formatted.split('.');
   if (parts.length === 2) {
@@ -95,5 +95,5 @@ export function formatTimeAgo(date: Date): string {
 }
 
 export function hashURI(uri: string): string {
-  return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(uri));
+  return keccak256(stringToHex(uri));
 }

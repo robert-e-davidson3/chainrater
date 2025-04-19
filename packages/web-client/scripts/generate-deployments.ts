@@ -41,12 +41,12 @@ function main(): void {
   };
 
   // List of contracts we care about - add more here as needed
-  // name: contract name
-  // src: source file name (without .sol)
-  // deploy: deploy script name (without .s.sol))
+  // name: The contract name in the ABI/deployments (e.g., "Ratings")
+  // src: The source file name without .sol extension (e.g., "Rating")
+  // deploy: The deployment script name without .s.sol extension (e.g., "DeployRating")
   const contractsToProcess = [
     { name: "Ratings", src: "Ratings", deploy: "DeployRatings" },
-    // { name: "TrustGraph". src: "TrustGraph", deploy: "DeployTrustGraph" },
+    // { name: "TrustGraph", src: "TrustGraph", deploy: "DeployTrustGraph" },
   ];
 
   // Extract ABI from each contract JSON file

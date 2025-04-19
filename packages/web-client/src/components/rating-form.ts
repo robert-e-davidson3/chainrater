@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { ethers } from 'ethers';
+import { parseEther } from 'viem';
 import { BlockchainService } from '../services/blockchain.service';
 import { formatETH } from '../utils/blockchain.utils';
 import { URIValidator } from '../utils/uri.utils';
@@ -278,7 +278,7 @@ export class RatingForm extends LitElement {
     if (this.isEditing && this.existingRating) {
       this.uriInput = this.existingRating.decodedURI || '';
       this.scoreInput = this.existingRating.score;
-      this.stakeInput = Number(ethers.utils.formatEther(this.existingRating.stake)).toString();
+      this.stakeInput = formatETH(this.existingRating.stake).replace(' ETH', '');
     }
   }
   
@@ -312,7 +312,7 @@ export class RatingForm extends LitElement {
       return false;
     }
     
-    const stakeWei = ethers.utils.parseEther(this.stakeInput);
+    const stakeWei = parseEther(this.stakeInput);
     
     if (stakeWei < this.minStake) {
       this.errorMessage = `Stake must be at least ${formatETH(this.minStake)}`;
@@ -331,12 +331,12 @@ export class RatingForm extends LitElement {
     this.errorMessage = '';
     
     try {
-      const stakeWei = ethers.utils.parseEther(this.stakeInput);
+      const stakeWei = parseEther(this.stakeInput);
       
       await this.blockchainService.submitRating(
         this.uriInput,
         this.scoreInput,
-        BigInt(stakeWei.toString())
+        stakeWei
       );
       
       // Reset form if not editing

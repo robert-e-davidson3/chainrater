@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { BlockchainService } from '../services/blockchain.service';
 import { shortenAddress } from '../utils/blockchain.utils';
 
@@ -8,8 +8,10 @@ export class HeaderNav extends LitElement {
   @property({ type: Boolean }) isConnected = false;
   @property({ type: String }) activeTab = 'dashboard';
   @property({ type: String }) accountAddress = '';
+  @state() private isConnecting = false;
   
   private blockchainService = BlockchainService.getInstance();
+  private unsubscribeAccount: (() => void) | null = null;
   
   static styles = css`
     :host {
@@ -87,7 +89,49 @@ export class HeaderNav extends LitElement {
     button:hover {
       background-color: #2980b9;
     }
+    
+    button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
   `;
+  
+  connectedCallback() {
+    super.connectedCallback();
+    
+    // Subscribe to account changes
+    this.unsubscribeAccount = this.blockchainService.onAccountChanged(() => {
+      this.updateConnectionState();
+    });
+    
+    // Check if already connected
+    this.updateConnectionState();
+  }
+  
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    
+    // Unsubscribe from account changes
+    if (this.unsubscribeAccount) {
+      this.unsubscribeAccount();
+      this.unsubscribeAccount = null;
+    }
+  }
+  
+  private updateConnectionState() {
+    const address = this.blockchainService.getAddress();
+    this.isConnected = !!address;
+    this.accountAddress = address || '';
+    
+    if (this.isConnected) {
+      // Dispatch connected event
+      this.dispatchEvent(new CustomEvent('wallet-connected', {
+        detail: { account: this.accountAddress },
+        bubbles: true,
+        composed: true
+      }));
+    }
+  }
   
   render() {
     return html`
@@ -116,13 +160,17 @@ export class HeaderNav extends LitElement {
           ${this.isConnected 
             ? html`<span class="address">${shortenAddress(this.accountAddress)}</span>
                    <button @click=${this.disconnect}>Disconnect</button>` 
-            : html`<button @click=${this.connect}>Connect Wallet</button>`}
+            : html`<button @click=${this.connect} ?disabled=${this.isConnecting}>
+                     ${this.isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                   </button>`}
         </div>
       </header>
     `;
   }
   
   async connect() {
+    this.isConnecting = true;
+    
     try {
       const account = await this.blockchainService.connect();
       this.isConnected = true;
@@ -137,6 +185,8 @@ export class HeaderNav extends LitElement {
     } catch (error) {
       console.error('Failed to connect wallet:', error);
       alert('Failed to connect wallet. Please make sure MetaMask is installed and unlocked.');
+    } finally {
+      this.isConnecting = false;
     }
   }
   
