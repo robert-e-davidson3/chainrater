@@ -53,6 +53,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Future Considerations
 - **Indexing Service**: Current implementation queries blockchain events directly, which works for development but doesn't scale. A dedicated indexing service (like The Graph) will be needed for production to efficiently query historical data.
 - **URI Hash Storage Strategy**: The current system uses keccak256 hashes of URIs stored on-chain. A more robust approach would involve IPFS for content addressing, particularly for structured metadata about ratings.
+- **Trust Graph**: Work has started but is shelved because it's out of scope for an MVP. But it does need to exist eventually for the product to make sense.
+- **Working Dashboard**: The dashboard should pull from the blockchain. Right now it uses placeholder data.
+- **Search**: Search does not work at all right now.
+- **Emit URI**: When submitting a new rating, the full URI should be emitted in the log. It might make sense to only emit when the URI is new, but that check might cost more gas. It seems likely that they should be 0-31 bytes or 0-64 bytes, for efficiency... but I don't think 
+- **Simulation**: Simulate txs to give user feedback and to reduce the chance of bad txs getting sent.
+- **Staking Input Tweaks**: Instead of entering in a number to stake, users should enter in a time for the review to be up. AND it should start at the minimum (aka 1 week). The user should see both how long the review will last AND how much weight it will have. IF necessary then use steps of 16 wei (or whatever in the contract) to ensure the stake is valid.
 
 ## Common Gotchas & Troubleshooting
 - **Event Querying**: Use `publicClient.getContractEvents()` instead of `getContract(...).getEvents()` which doesn't return a list of events as expected.
