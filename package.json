@@ -3,8 +3,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "shared/*"
+    "packages/*"
   ],
   "scripts": {
     "build:contracts": "forge build --root contracts",
@@ -18,7 +17,6 @@
     "dev:landing-page": "npm run dev -w @chainrater/landing-page",
     "start:landing-page": "npm run start -w @chainrater/landing-page",
     "test:contracts": "forge test --root contracts",
-    "generate-types": "typechain --target=ethers-v5 'contracts/out/**/*.json' --out-dir shared/types/contracts",
     "format:contracts": "prettier --write --no-error-on-unmatched-pattern --plugin=prettier-plugin-solidity contracts/{lib,script,src,test}/*.sol"
   },
   "devDependencies": {
