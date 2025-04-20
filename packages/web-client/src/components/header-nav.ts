@@ -1,24 +1,24 @@
-import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import { BlockchainService } from '../services/blockchain.service';
-import { shortenAddress } from '../utils/blockchain.utils';
+import { LitElement, html, css } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import { BlockchainService } from "../services/blockchain.service";
+import { shortenAddress } from "../utils/blockchain.utils";
 
-@customElement('header-nav')
+@customElement("header-nav")
 export class HeaderNav extends LitElement {
   @property({ type: Boolean }) isConnected = false;
-  @property({ type: String }) activeTab = 'dashboard';
-  @property({ type: String }) accountAddress = '';
+  @property({ type: String }) activeTab = "dashboard";
+  @property({ type: String }) accountAddress = "";
   @state() private isConnecting = false;
-  
+
   private blockchainService = BlockchainService.getInstance();
   private unsubscribeAccount: (() => void) | null = null;
-  
+
   static styles = css`
     :host {
       display: block;
       width: 100%;
     }
-    
+
     header {
       display: flex;
       align-items: center;
@@ -27,18 +27,18 @@ export class HeaderNav extends LitElement {
       background-color: #ffffff;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-    
+
     .branding {
       font-size: 1.5rem;
       font-weight: bold;
       color: #3498db;
     }
-    
+
     nav {
       display: flex;
       gap: 1.5rem;
     }
-    
+
     nav a {
       text-decoration: none;
       color: #333;
@@ -47,13 +47,13 @@ export class HeaderNav extends LitElement {
       padding: 0.5rem 0;
       font-weight: 500;
     }
-    
+
     nav a.active {
       color: #3498db;
     }
-    
+
     nav a.active::after {
-      content: '';
+      content: "";
       position: absolute;
       bottom: 0;
       left: 0;
@@ -61,20 +61,20 @@ export class HeaderNav extends LitElement {
       height: 2px;
       background-color: #3498db;
     }
-    
+
     .wallet {
       display: flex;
       align-items: center;
       gap: 1rem;
     }
-    
+
     .address {
       font-family: monospace;
       background-color: #f5f5f5;
       padding: 0.25rem 0.5rem;
       border-radius: 4px;
     }
-    
+
     button {
       background-color: #3498db;
       color: white;
@@ -85,131 +85,160 @@ export class HeaderNav extends LitElement {
       font-weight: 500;
       transition: background-color 0.2s;
     }
-    
+
     button:hover {
       background-color: #2980b9;
     }
-    
+
     button:disabled {
       background-color: #95a5a6;
       cursor: not-allowed;
     }
   `;
-  
+
   connectedCallback() {
     super.connectedCallback();
-    
+
     // Subscribe to account changes
     this.unsubscribeAccount = this.blockchainService.onAccountChanged(() => {
       this.updateConnectionState();
     });
-    
+
     // Check if already connected
     this.updateConnectionState();
   }
-  
+
   disconnectedCallback() {
     super.disconnectedCallback();
-    
+
     // Unsubscribe from account changes
     if (this.unsubscribeAccount) {
       this.unsubscribeAccount();
       this.unsubscribeAccount = null;
     }
   }
-  
+
   private updateConnectionState() {
-    const address = this.blockchainService.getAddress();
+    const address = this.blockchainService.address;
     this.isConnected = !!address;
-    this.accountAddress = address || '';
-    
+    this.accountAddress = address || "";
+
     if (this.isConnected) {
       // Dispatch connected event
-      this.dispatchEvent(new CustomEvent('wallet-connected', {
-        detail: { account: this.accountAddress },
-        bubbles: true,
-        composed: true
-      }));
+      this.dispatchEvent(
+        new CustomEvent("wallet-connected", {
+          detail: { account: this.accountAddress },
+          bubbles: true,
+          composed: true,
+        }),
+      );
     }
   }
-  
+
   render() {
     return html`
       <header>
         <div class="branding">
           <span class="product-name">ChainRater</span>
         </div>
-        
+
         <nav>
-          <a class="${this.activeTab === 'dashboard' ? 'active' : ''}" 
-             @click=${() => this.switchTab('dashboard')}>Dashboard</a>
-          
-          ${this.isConnected ? html`
-            <a class="${this.activeTab === 'myratings' ? 'active' : ''}" 
-               @click=${() => this.switchTab('myratings')}>My Ratings</a>
-          ` : ''}
-          
-          <a class="${this.activeTab === 'rate' ? 'active' : ''}" 
-             @click=${() => this.switchTab('rate')}>Rate Item</a>
-          
-          <a class="${this.activeTab === 'search' ? 'active' : ''}" 
-             @click=${() => this.switchTab('search')}>Search</a>
+          <a
+            class="${this.activeTab === "dashboard" ? "active" : ""}"
+            @click=${() => this.switchTab("dashboard")}
+            >Dashboard</a
+          >
+
+          ${this.isConnected
+            ? html`
+                <a
+                  class="${this.activeTab === "myratings" ? "active" : ""}"
+                  @click=${() => this.switchTab("myratings")}
+                  >My Ratings</a
+                >
+              `
+            : ""}
+
+          <a
+            class="${this.activeTab === "rate" ? "active" : ""}"
+            @click=${() => this.switchTab("rate")}
+            >Rate Item</a
+          >
+
+          <a
+            class="${this.activeTab === "search" ? "active" : ""}"
+            @click=${() => this.switchTab("search")}
+            >Search</a
+          >
         </nav>
-        
+
         <div class="wallet">
-          ${this.isConnected 
-            ? html`<span class="address">${shortenAddress(this.accountAddress)}</span>
-                   <button @click=${this.disconnect}>Disconnect</button>` 
-            : html`<button @click=${this.connect} ?disabled=${this.isConnecting}>
-                     ${this.isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                   </button>`}
+          ${this.isConnected
+            ? html`<span class="address"
+                  >${shortenAddress(this.accountAddress)}</span
+                >
+                <button @click=${this.disconnect}>Disconnect</button>`
+            : html`<button
+                @click=${this.connect}
+                ?disabled=${this.isConnecting}
+              >
+                ${this.isConnecting ? "Connecting..." : "Connect Wallet"}
+              </button>`}
         </div>
       </header>
     `;
   }
-  
+
   async connect() {
     this.isConnecting = true;
-    
+
     try {
       const account = await this.blockchainService.connect();
       this.isConnected = true;
       this.accountAddress = account;
-      
+
       // Dispatch connected event
-      this.dispatchEvent(new CustomEvent('wallet-connected', {
-        detail: { account },
-        bubbles: true,
-        composed: true
-      }));
+      this.dispatchEvent(
+        new CustomEvent("wallet-connected", {
+          detail: { account },
+          bubbles: true,
+          composed: true,
+        }),
+      );
     } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      alert('Failed to connect wallet. Please make sure MetaMask is installed and unlocked.');
+      console.error("Failed to connect wallet:", error);
+      alert(
+        "Failed to connect wallet. Please make sure MetaMask is installed and unlocked.",
+      );
     } finally {
       this.isConnecting = false;
     }
   }
-  
+
   async disconnect() {
     await this.blockchainService.disconnect();
     this.isConnected = false;
-    this.accountAddress = '';
-    
+    this.accountAddress = "";
+
     // Dispatch disconnected event
-    this.dispatchEvent(new CustomEvent('wallet-disconnected', {
-      bubbles: true,
-      composed: true
-    }));
+    this.dispatchEvent(
+      new CustomEvent("wallet-disconnected", {
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
-  
+
   switchTab(tab: string) {
     this.activeTab = tab;
-    
+
     // Dispatch tab change event
-    this.dispatchEvent(new CustomEvent('tab-changed', {
-      detail: { tab },
-      bubbles: true,
-      composed: true
-    }));
+    this.dispatchEvent(
+      new CustomEvent("tab-changed", {
+        detail: { tab },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 }

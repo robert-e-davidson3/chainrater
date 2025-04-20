@@ -294,93 +294,133 @@ export class RatingSearch extends LitElement {
     this.errorMessage = '';
     
     try {
-      // In a real implementation, this would query the blockchain or an indexer
-      // For now, use mock data
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!this.blockchainService.isConnected() && this.searchType !== 'all') {
+        throw new Error('Please connect your wallet first');
+      }
       
-      // Generate different mock results based on search type
-      this.searchResults = this.generateMockResults();
+      // Convert search input to actual search results from blockchain
+      let results: SearchResult[] = [];
+      
+      // For "all" or "rate" searches, we search by the URI
+      if (this.searchType === 'all' || this.searchType === 'rate' || this.searchType === 'guide') {
+        try {
+          // Get ratings for the specified URI
+          const ratings = await this.blockchainService.getURIRatings(this.searchInput);
+          
+          if (ratings.length > 0) {
+            // Calculate average score
+            const totalScore = ratings.reduce((sum, rating) => sum + rating.score, 0);
+            const averageScore = totalScore / ratings.length;
+            
+            // Create a search result
+            results.push({
+              uriHash: ratings[0].uriHash,
+              decodedURI: this.searchInput,
+              averageScore,
+              ratingCount: ratings.length,
+              topRatings: ratings.slice(0, 3) // Take top 3 ratings
+            });
+          }
+        } catch (error) {
+          console.warn('Error fetching URI ratings:', error);
+        }
+      }
+      
+      // For "cleanup" searches, we look for expired ratings
+      if (this.searchType === 'cleanup') {
+        try {
+          // In a real implementation, we would have a more specialized query
+          // to find expired ratings. Since we don't have that yet, we'll
+          // check all ratings from all users to find expired ones.
+          
+          // This is inefficient and just for demonstration - in production
+          // you would want to use an indexer or specialized query
+          const now = Date.now() / 1000; // current time in seconds
+          
+          // Get all ratings for the current chain
+          const allEvents = await this.blockchainService.publicClient!.getContractEvents({
+            address: this.blockchainService.ratingsContract.address,
+            abi: this.blockchainService.ratingsContract.abi,
+            eventName: 'RatingSubmitted',
+            fromBlock: 'earliest',
+            toBlock: 'latest'
+          });
+          
+          // Process each event
+          for (const event of allEvents) {
+            const { uri, rater } = event.args as any;
+            
+            try {
+              // Get the full rating to check if it's expired
+              const rating = await this.blockchainService.getRating(uri, rater);
+              
+              // Check if rating is expired
+              if (rating && Number(rating.posted) + Number(rating.stake) < now) {
+                results.push({
+                  uriHash: uri,
+                  decodedURI: rating.decodedURI,
+                  averageScore: rating.score,
+                  ratingCount: 1,
+                  stake: rating.stake.toString(),
+                  expirationTime: rating.expirationTime,
+                  isExpired: true,
+                  rater: rater
+                });
+              }
+            } catch (error) {
+              // Skip this rating if there's an error
+              console.warn(`Error checking if rating is expired:`, error);
+            }
+          }
+        } catch (error) {
+          console.warn('Error fetching expired ratings:', error);
+        }
+      }
+      
+      // Filter and sort results based on search type
+      this.processResults(results);
+      
     } catch (error) {
       console.error('Search error:', error);
-      this.errorMessage = 'Failed to search. Please try again.';
+      this.errorMessage = error.message || 'Failed to search. Please try again.';
+      this.searchResults = [];
     } finally {
       this.isSearching = false;
     }
   }
   
-  generateMockResults(): SearchResult[] {
-    const now = Date.now();
-    
-    // Base mock data
-    const allResults = [
-      {
-        uriHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        decodedURI: 'restaurant://Goy\'s Vegan Hamburgers',
-        averageScore: 4.6,
-        ratingCount: 8,
-        stake: '200000000000000000', // 0.2 ETH
-        expirationTime: new Date(now - 86400000 * 2), // Expired 2 days ago
-        isExpired: true
-      },
-      {
-        uriHash: '0x2345678901abcdef2345678901abcdef2345678901abcdef2345678901abcdef',
-        decodedURI: 'business://Ethereum Foundation',
-        averageScore: 4.2,
-        ratingCount: 15,
-        stake: '150000000000000000', // 0.15 ETH
-        expirationTime: new Date(now - 86400000 * 1), // Expired 1 day ago
-        isExpired: true
-      },
-      {
-        uriHash: '0x3456789012abcdef3456789012abcdef3456789012abcdef3456789012abcdef',
-        decodedURI: 'product://Tesla Model 3',
-        averageScore: 4.8,
-        ratingCount: 12,
-        stake: '180000000000000000', // 0.18 ETH
-        expirationTime: new Date(now + 86400000 * 10), // Expires in 10 days
-        isExpired: false
-      },
-      {
-        uriHash: '0x4567890123abcdef4567890123abcdef4567890123abcdef4567890123abcdef',
-        decodedURI: 'consumable://Jack Daniel\'s Whiskey',
-        averageScore: 3.7,
-        ratingCount: 25,
-        stake: '120000000000000000', // 0.12 ETH
-        expirationTime: new Date(now - 86400000 * 3), // Expired 3 days ago
-        isExpired: true
-      },
-      {
-        uriHash: '0x5678901234abcdef5678901234abcdef5678901234abcdef5678901234abcdef',
-        decodedURI: 'app://Discord',
-        averageScore: 4.5,
-        ratingCount: 15,
-        stake: '170000000000000000', // 0.17 ETH
-        expirationTime: new Date(now + 86400000 * 5), // Expires in 5 days
-        isExpired: false
-      }
-    ];
-    
-    // Filter based on search type and input
+  processResults(results: SearchResult[]) {
     const searchLower = this.searchInput.toLowerCase();
     
+    // Filter and sort based on search type
     switch (this.searchType) {
       case 'cleanup':
-        return allResults.filter(result => result.isExpired);
+        // Only show expired ratings
+        this.searchResults = results.filter(result => result.isExpired);
+        break;
         
       case 'guide':
-        return allResults
-          .filter(result => !result.isExpired && result.decodedURI.toLowerCase().includes(searchLower))
+        // Sort by highest average score
+        this.searchResults = results
+          .filter(result => !result.isExpired)
           .sort((a, b) => b.averageScore - a.averageScore);
+        break;
         
       case 'rate':
-        return allResults
-          .filter(result => result.decodedURI.toLowerCase().includes(searchLower))
+        // For finding URIs to rate, show matching URIs
+        this.searchResults = results
+          .filter(result => 
+            result.decodedURI?.toLowerCase().includes(searchLower)
+          )
           .slice(0, 3); // Limit to first few matches
+        break;
         
       default: // 'all'
-        return allResults.filter(result => 
-          result.decodedURI.toLowerCase().includes(searchLower)
+        // Show all results that match the search term
+        this.searchResults = results.filter(result => 
+          result.decodedURI?.toLowerCase().includes(searchLower)
         );
+        break;
     }
   }
   
@@ -402,14 +442,19 @@ export class RatingSearch extends LitElement {
       return;
     }
     
-    if (!confirm(`Clean up this expired rating and claim ${formatETH(BigInt(result.stake || 0))}?`)) {
+    // Find the rater address from the top ratings (it should be included in the result)
+    const raterAddress = result.rater;
+    
+    if (!raterAddress) {
+      this.errorMessage = 'Could not determine the rater address';
+      return;
+    }
+    
+    if (!confirm(`Clean up this expired rating and claim ${formatETH(BigInt(result.stake || '0'))}?`)) {
       return;
     }
     
     try {
-      // Extract rater address from the result (in a real implementation)
-      const raterAddress = '0x0000000000000000000000000000000000000000'; // Placeholder
-      
       await this.blockchainService.cleanupRating(
         result.decodedURI || '',
         raterAddress
@@ -417,7 +462,7 @@ export class RatingSearch extends LitElement {
       
       // Remove from list after successful cleanup
       this.searchResults = this.searchResults.filter(r => 
-        r.uriHash !== result.uriHash
+        r.uriHash !== result.uriHash || r.rater !== raterAddress
       );
       
       // Notify parent components

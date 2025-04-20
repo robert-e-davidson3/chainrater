@@ -265,7 +265,7 @@ export class RatingForm extends LitElement {
     // Try to get minimum stake from contract
     try {
       if (this.blockchainService.isConnected()) {
-        this.minStake = await this.blockchainService.getMinimumStake();
+        this.minStake = await this.blockchainService.minStake();
       } else {
         // Default: MIN_STAKE = STAKE_PER_SECOND * 1 weeks;
         this.minStake = BigInt(16000000 * 604800);

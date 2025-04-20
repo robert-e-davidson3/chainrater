@@ -9,6 +9,13 @@ contract Ratings {
         uint64 stake
     );
 
+    event RatingReSubmitted(
+        bytes32 indexed uri,
+        address indexed rater,
+        uint8 score,
+        uint64 stake
+    );
+
     event RatingRemoved(
         bytes32 indexed uri,
         address indexed rater,
@@ -62,12 +69,7 @@ contract Ratings {
             revert InvalidStake(stake);
         }
 
-        // Return previous stake if replacing existing rating.
         uint64 rebate = ratings[uri][msg.sender].stake;
-        if (rebate > 0) {
-            ratings[uri][msg.sender].stake = 0; // prevent re-entrancy
-            pay(msg.sender, rebate);
-        }
 
         ratings[uri][msg.sender] = Rating({
             score: score,
@@ -75,7 +77,14 @@ contract Ratings {
             stake: stake / STAKE_PER_SECOND
         });
 
-        emit RatingSubmitted(uri, msg.sender, score, stake);
+        if (rebate > 0) {
+            // Return previous stake if replacing existing rating
+            ratings[uri][msg.sender].stake = 0; // prevent re-entrancy
+            pay(msg.sender, rebate);
+            emit RatingReSubmitted(uri, msg.sender, score, stake);
+        } else {
+            emit RatingSubmitted(uri, msg.sender, score, stake);
+        }
     }
 
     // Remove your own rating, and get your stake back.

@@ -1,4 +1,6 @@
 import {
+  keccak256,
+  toHex,
   createWalletClient,
   createPublicClient,
   http,
@@ -8,8 +10,9 @@ import {
   type PublicClient,
   type Chain,
   type Address,
+  decodeEventLog,
 } from "viem";
-import { mainnet, sepolia, localhost } from "viem/chains";
+import { mainnet, sepolia, foundry } from "viem/chains";
 import { hashURI } from "../utils/blockchain.utils.js";
 import "viem/window";
 
@@ -19,7 +22,7 @@ import "viem/window";
 import deployments from "../../src/deployments.json";
 
 // Supported chains
-const chains = [mainnet, sepolia, localhost];
+const chains = [mainnet, sepolia, foundry];
 
 export class BlockchainService {
   // Singleton instance
@@ -108,6 +111,8 @@ export class BlockchainService {
       throw Error(`ChainRater is not deployed on network ${this.chain.id}`);
     const { address, abi } = contractInfo;
 
+    console.log("chain id: ", this.chain.id);
+
     let client;
     if (this.publicClient && this.walletClient)
       client = {
@@ -131,32 +136,27 @@ export class BlockchainService {
       throw new Error("MetaMask or compatible wallet is required");
     }
 
-    try {
-      // Create wallet client with MetaMask provider
-      this.walletClient = createWalletClient({
-        transport: custom(window.ethereum),
-      });
+    // Create wallet client with MetaMask provider
+    this.walletClient = createWalletClient({
+      transport: custom(window.ethereum),
+    });
 
-      // Request accounts
-      const accounts = await this.walletClient.requestAddresses();
-      this.account = accounts[0];
+    // Request accounts
+    const accounts = await this.walletClient.requestAddresses();
+    this.account = accounts[0];
 
-      if (!this.account) {
-        throw new Error("No accounts found");
-      }
-
-      // Get chain ID
-      const chainId = await window.ethereum
-        .request({ method: "eth_chainId" })
-        .then((chainIdHex) => parseInt(chainIdHex as string, 16));
-
-      this.setChain(chainId);
-
-      return this.account;
-    } catch (error) {
-      console.error("Connection error:", error);
-      throw error;
+    if (!this.account) {
+      throw new Error("No accounts found");
     }
+
+    // Get chain ID
+    const chainId = await window.ethereum
+      .request({ method: "eth_chainId" })
+      .then((chainIdHex) => parseInt(chainIdHex as string, 16));
+
+    this.setChain(chainId);
+
+    return this.account;
   }
 
   private getContractInfo(
@@ -181,10 +181,10 @@ export class BlockchainService {
   }
 
   isConnected(): boolean {
-    return !!this.account && !!this.walletClient && !!this.ratingsContract;
+    return !!this.account && !!this.walletClient;
   }
 
-  getAddress(): string | null {
+  get address(): string | null {
     return this.account;
   }
 
@@ -199,8 +199,7 @@ export class BlockchainService {
 
     const contract = this.ratingsContract;
 
-    const result = await contract.read.STAKE_PER_SECOND([]);
-    return result[0] as bigint; // TODO verify
+    return contract.read.STAKE_PER_SECOND([]) as unknown as bigint;
   }
 
   async minStake(): Promise<bigint> {
@@ -210,8 +209,7 @@ export class BlockchainService {
 
     const contract = this.ratingsContract;
 
-    const result = await contract.read.MIN_STAKE([]);
-    return result[0] as bigint; // TODO verify
+    return contract.read.MIN_STAKE([]) as unknown as bigint;
   }
 
   async submitRating(uri: string, score: number, stake: bigint) {
@@ -220,11 +218,19 @@ export class BlockchainService {
 
     const uriHash = hashURI(uri);
 
-    await this.ratingsContract.write.submitRating([uriHash, score], {
-      value: stake,
-      chain: this.chain,
-      account: this.account,
-    });
+    console.log(this.ratingsContract.address);
+
+    const txHash = await this.ratingsContract.write.submitRating(
+      [uriHash, score],
+      {
+        value: stake,
+        chain: this.chain,
+        account: this.account,
+      },
+    );
+    console.log(
+      await this.publicClient?.waitForTransactionReceipt({ hash: txHash }),
+    );
   }
 
   async removeRating(uri: string) {
@@ -264,6 +270,7 @@ export class BlockchainService {
     ])) as unknown as RatingStruct;
 
     const stakePerSecond = await this.stakePerSecond();
+    console.log(stake, stakePerSecond);
     const stakeInWei = stake * stakePerSecond;
 
     return {
@@ -277,16 +284,146 @@ export class BlockchainService {
     };
   }
 
-  // TODO return all ratings for given address
-  async getUserRatings(_address: string): Promise<Rating[]> {
-    // This is a placeholder implementation
-    // In a real implementation, you would query events or use an indexer
-    return [];
+  async getUserRatings(rater: Address): Promise<Rating[]> {
+    if (!this.publicClient || !this.chain) throw new Error("Not connected");
+
+    const contract = this.ratingsContract;
+
+    const logs = await this.publicClient?.getContractEvents({
+      abi: contract.abi,
+      address: contract.address,
+      fromBlock: "earliest",
+      toBlock: "latest",
+      args: {
+        rater,
+      },
+    });
+    console.log("logs:", logs);
+
+    const events: Record<string, RatingLog> = {};
+    for (const log of logs) {
+      const { blockNumber } = log;
+      const add =
+        log.eventName === "RatingSubmitted" ||
+        log.eventName === "RatingReSubmitted";
+      const {
+        rater,
+        score,
+        stake,
+        uri: uriHash,
+      }: {
+        rater: Address;
+        score: number;
+        stake: bigint;
+        uri: string;
+      } = log.args as any;
+
+      // We already have a newer log
+      const event = events[uriHash];
+      if (event && event.blockNumber > blockNumber) continue;
+
+      // New or newer log
+      events[uriHash] = {
+        uriHash,
+        rater,
+        score,
+        stake,
+        blockNumber,
+        add,
+      };
+    }
+    console.log(events);
+
+    const ratings: Rating[] = [];
+    for (const uriHash in events) {
+      const event = events[uriHash];
+      console.log("uriHash:", uriHash, "event:", event);
+      if (!event.add) continue;
+
+      const rating = await this.getRating(event.uriHash, event.rater);
+      if (!rating)
+        throw new Error(`Rating not found: ${rater}/${event.uriHash}`);
+
+      ratings.push({
+        uriHash,
+        rater: event.rater,
+        score: event.score,
+        stake: event.stake,
+        posted: rating.posted,
+        expirationTime: rating.expirationTime,
+      });
+    }
+    return ratings;
   }
 
-  // TODO return all ratings for given URI
-  async getURIRatings(_uri: string): Promise<Rating[]> {
-    return [];
+  async getURIRatings(uri: string): Promise<Rating[]> {
+    if (!this.publicClient || !this.chain) throw new Error("Not connected");
+
+    const contractInfo = this.getContractInfo("Ratings", this.chain.id);
+    if (!contractInfo)
+      throw new Error(`Contract not deployed on network ${this.chain.id}`);
+
+    const uriHash = hashURI(uri);
+
+    try {
+      // Filter for RatingSubmitted events where the URI matches
+      const events = await this.publicClient.getContractEvents({
+        address: contractInfo.address,
+        abi: contractInfo.abi,
+        eventName: "RatingSubmitted",
+        args: {
+          uri: uriHash,
+        },
+        fromBlock: "earliest",
+        toBlock: "latest",
+      });
+
+      // Filter for RatingRemoved events to exclude removed ratings
+      const removedEvents = await this.publicClient.getContractEvents({
+        address: contractInfo.address,
+        abi: contractInfo.abi,
+        eventName: "RatingRemoved",
+        args: {
+          uri: uriHash,
+        },
+        fromBlock: "earliest",
+        toBlock: "latest",
+      });
+
+      // Create a set of removed rater addresses for this URI
+      const removedRaters = new Set(
+        removedEvents.map((event) => (event.args as any).rater as string),
+      );
+
+      // Process and transform the events into Rating objects
+      const ratings: Rating[] = [];
+
+      for (const event of events) {
+        const { uri, rater } = event.args as any;
+
+        // Skip if this rating was removed
+        if (removedRaters.has(rater)) continue;
+
+        // Get the full rating data from the contract
+        try {
+          const rating = await this.getRating(uri, rater);
+          if (rating) {
+            ratings.push(rating);
+          }
+        } catch (error) {
+          console.warn(
+            `Error fetching rating details for rater ${rater}:`,
+            error,
+          );
+          // Continue with next rating if one fails
+        }
+      }
+
+      return ratings;
+    } catch (error) {
+      console.error("Error fetching URI ratings:", error);
+      throw error;
+    }
   }
 }
 
@@ -323,4 +460,16 @@ export interface SearchResult {
   ratingCount: number;
   topRatings?: Rating[];
   isExpired?: boolean;
+  stake?: string;
+  expirationTime?: Date;
+  rater?: string;
+}
+
+export interface RatingLog {
+  uriHash: string;
+  rater: string;
+  score: number;
+  stake: bigint;
+  blockNumber: bigint;
+  add: boolean; // true if Rating(Re)Submitted, false otherwise
 }
