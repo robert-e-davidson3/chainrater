@@ -29,11 +29,8 @@ contract Ratings {
         uint8 score,
         uint64 stake
     );
-    
-    event UriRevealed(
-        bytes32 indexed uriHash,
-        string uri
-    );
+
+    event UriRevealed(bytes32 indexed uriHash, string uri);
 
     error InvalidScore(uint8 rating);
 
@@ -54,7 +51,7 @@ contract Ratings {
     // URI hash -> account -> rating
     // The URI hash is a keccak256 of the full URI
     mapping(bytes32 => mapping(address => Rating)) public ratings;
-    
+
     // Track which URI hashes have already had their original URI revealed
     mapping(bytes32 => bool) private revealedUris;
 
@@ -76,12 +73,12 @@ contract Ratings {
         if (!validStake(stake)) {
             revert InvalidStake(stake);
         }
-        
+
         // Compute the hash of the URI string
         bytes32 uriHash = keccak256(bytes(uri));
 
         uint64 rebate = ratings[uriHash][msg.sender].stake;
-        
+
         // If this URI hash has never been revealed before, emit the UriRevealed event
         if (!revealedUris[uriHash]) {
             revealedUris[uriHash] = true;
@@ -102,7 +99,6 @@ contract Ratings {
             posted: uint64(block.timestamp),
             stake: stake / STAKE_PER_SECOND
         });
-
     }
 
     // Remove your own rating, and get your stake back.
@@ -140,7 +136,7 @@ contract Ratings {
         emit RatingCleanedUp(uriHash, rater, score, stake);
         pay(rater, stake);
     }
-    
+
     function getRating(
         bytes32 uriHash,
         address rater
