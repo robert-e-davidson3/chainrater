@@ -7,7 +7,6 @@ import "../src/Ratings.sol";
 contract PopulateWithTestData is Script {
     // Sample URIs to populate with ratings
     string[] uriStrings;
-    bytes32[] uriHashes;
     uint256[] userPrivateKeys;
     address[] userAddresses;
 
@@ -19,10 +18,9 @@ contract PopulateWithTestData is Script {
         uriStrings.push("https://reddit.com");
         uriStrings.push("https://opensea.io");
         
-        // Convert strings to keccak256 hashes
+        // Log URIs
         for (uint i = 0; i < uriStrings.length; i++) {
-            bytes32 hash = keccak256(abi.encodePacked(uriStrings[i]));
-            uriHashes.push(hash);
+            bytes32 hash = keccak256(bytes(uriStrings[i]));
             console.log("URI: %s, Hash: %s", uriStrings[i], vm.toString(hash));
         }
 
@@ -57,7 +55,7 @@ contract PopulateWithTestData is Script {
             console.log("Creating ratings from account: %s", userAddresses[i]);
             
             // Each user rates several URIs
-            for (uint j = 0; j < uriHashes.length; j++) {
+            for (uint j = 0; j < uriStrings.length; j++) {
                 // Generate different scores for variety (1-5)
                 uint8 score = uint8(((i + j) % 5) + 1);
                 
@@ -66,8 +64,8 @@ contract PopulateWithTestData is Script {
                 
                 console.log("  Rating URI: %s with score: %d, stake: %d", uriStrings[j], score, stake);
                 
-                // Submit rating
-                ratings.submitRating{value: stake}(uriHashes[j], score);
+                // Submit rating using string URI
+                ratings.submitRating{value: stake}(uriStrings[j], score);
             }
             
             vm.stopBroadcast();
@@ -77,7 +75,7 @@ contract PopulateWithTestData is Script {
         console.log(
             "Populated ratings data for %d users and %d URIs",
             userPrivateKeys.length,
-            uriHashes.length
+            uriStrings.length
         );
     }
 }

@@ -29,6 +29,11 @@ contract Ratings {
         uint8 score,
         uint64 stake
     );
+    
+    event UriRevealed(
+        bytes32 indexed uriHash,
+        string uri
+    );
 
     error InvalidScore(uint8 rating);
 
@@ -38,7 +43,7 @@ contract Ratings {
 
     error InvalidRater(address rater);
 
-    error NoSuchRating(bytes32 uri, address rater);
+    error NoSuchRating(bytes32 uriHash, address rater);
 
     // STAKE_PER_SECOND is how many wei are needed for a second of duration
     // Note that Rating.stake == 16 wei == 1 second
@@ -49,6 +54,9 @@ contract Ratings {
     // URI hash -> account -> rating
     // The URI hash is a keccak256 of the full URI
     mapping(bytes32 => mapping(address => Rating)) public ratings;
+    
+    // Track which URI hashes have already had their original URI revealed
+    mapping(bytes32 => bool) private revealedUris;
 
     struct Rating {
         uint8 score;
@@ -58,7 +66,7 @@ contract Ratings {
 
     // Add a new rating.
     // May overwrite existing rating. You get your stake back in that case.
-    function submitRating(bytes32 uri, uint8 score) external payable {
+    function submitRating(string calldata uri, uint8 score) external payable {
         if (!validScore(score)) {
             revert InvalidScore(score);
         }
@@ -68,47 +76,59 @@ contract Ratings {
         if (!validStake(stake)) {
             revert InvalidStake(stake);
         }
+        
+        // Compute the hash of the URI string
+        bytes32 uriHash = keccak256(bytes(uri));
 
-        uint64 rebate = ratings[uri][msg.sender].stake;
+        uint64 rebate = ratings[uriHash][msg.sender].stake;
+        
+        // If this URI hash has never been revealed before, emit the UriRevealed event
+        if (!revealedUris[uriHash]) {
+            revealedUris[uriHash] = true;
+            emit UriRevealed(uriHash, uri);
+        }
 
-        ratings[uri][msg.sender] = Rating({
+        if (rebate > 0) {
+            // Return previous stake if replacing existing rating
+            ratings[uriHash][msg.sender].stake = 0; // prevent re-entrancy
+            pay(msg.sender, rebate);
+            emit RatingReSubmitted(uriHash, msg.sender, score, stake);
+        } else {
+            emit RatingSubmitted(uriHash, msg.sender, score, stake);
+        }
+
+        ratings[uriHash][msg.sender] = Rating({
             score: score,
             posted: uint64(block.timestamp),
             stake: stake / STAKE_PER_SECOND
         });
 
-        if (rebate > 0) {
-            // Return previous stake if replacing existing rating
-            ratings[uri][msg.sender].stake = 0; // prevent re-entrancy
-            pay(msg.sender, rebate);
-            emit RatingReSubmitted(uri, msg.sender, score, stake);
-        } else {
-            emit RatingSubmitted(uri, msg.sender, score, stake);
-        }
     }
 
     // Remove your own rating, and get your stake back.
-    function removeRating(bytes32 uri) external {
-        Rating storage rating = ratings[uri][msg.sender];
+    function removeRating(string calldata uri) external {
+        bytes32 uriHash = keccak256(bytes(uri));
+        Rating storage rating = ratings[uriHash][msg.sender];
 
         if (rating.stake == 0) {
-            revert NoSuchRating(uri, msg.sender);
+            revert NoSuchRating(uriHash, msg.sender);
         }
 
         uint64 stake = rating.stake;
         uint8 score = rating.score;
-        delete ratings[uri][msg.sender]; // prevent re-entrancy
+        delete ratings[uriHash][msg.sender]; // prevent re-entrancy
         pay(msg.sender, stake);
-        emit RatingRemoved(uri, msg.sender, score, stake);
+        emit RatingRemoved(uriHash, msg.sender, score, stake);
     }
 
     // Remove someone else's rating - get their stake.
-    function cleanupRating(bytes32 uri, address rater) external {
+    function cleanupRating(string calldata uri, address rater) external {
         if (rater == address(0)) {
             revert InvalidRater(rater);
         }
 
-        Rating storage rating = ratings[uri][rater];
+        bytes32 uriHash = keccak256(bytes(uri));
+        Rating storage rating = ratings[uriHash][rater];
 
         if (rating.posted + rating.stake > block.timestamp) {
             revert RatingIsStillValid(rating.posted, rating.stake);
@@ -116,16 +136,24 @@ contract Ratings {
 
         uint64 stake = rating.stake;
         uint8 score = rating.score;
-        delete ratings[uri][rater]; // prevent re-entrancy
-        emit RatingCleanedUp(uri, rater, score, stake);
+        delete ratings[uriHash][rater]; // prevent re-entrancy
+        emit RatingCleanedUp(uriHash, rater, score, stake);
         pay(rater, stake);
     }
-
+    
     function getRating(
-        bytes32 uri,
+        bytes32 uriHash,
         address rater
     ) external view returns (Rating memory) {
-        return ratings[uri][rater];
+        return ratings[uriHash][rater];
+    }
+
+    function getRatingByString(
+        string calldata uri,
+        address rater
+    ) external view returns (Rating memory) {
+        bytes32 uriHash = keccak256(bytes(uri));
+        return ratings[uriHash][rater];
     }
 
     function pay(address recipient, uint64 stake) internal {

@@ -10,7 +10,7 @@ contract RatingTest is Test {
     Ratings public ratings;
     address public user1;
     address public user2;
-    bytes32 public testUri;
+    string public testUri;
 
     fallback() external payable {}
 
@@ -20,7 +20,7 @@ contract RatingTest is Test {
         ratings = new Ratings();
         user1 = address(0x1111);
         user2 = address(0x2222);
-        testUri = keccak256("place://Five Guys");
+        testUri = "place://Five Guys";
 
         // Fund test accounts
         vm.deal(user1, 100 ether);
@@ -36,7 +36,7 @@ contract RatingTest is Test {
         // Just send the MIN_STAKE value directly
         ratings.submitRating{value: stake}(testUri, score);
 
-        Ratings.Rating memory r = ratings.getRating(testUri, address(this));
+        Ratings.Rating memory r = ratings.getRatingByString(testUri, address(this));
         assertEq(r.score, score);
         assertEq(r.stake, stake / ratings.STAKE_PER_SECOND());
         assertEq(r.posted, block.timestamp);
@@ -45,12 +45,12 @@ contract RatingTest is Test {
     // Test all valid ratings (1-5)
     function testAllValidRatings() public {
         for (uint8 i = 1; i <= 5; i++) {
-            bytes32 uri = keccak256(abi.encodePacked("test://site", i));
+            string memory uri = string(abi.encodePacked("test://site", i));
             uint64 stake = ratings.MIN_STAKE();
 
             ratings.submitRating{value: stake}(uri, i);
 
-            Ratings.Rating memory r = ratings.getRating(uri, address(this));
+            Ratings.Rating memory r = ratings.getRatingByString(uri, address(this));
             assertEq(r.score, i);
         }
     }
@@ -109,6 +109,9 @@ contract RatingTest is Test {
 
         uint256 balanceBefore = address(this).balance;
 
+        // Start recording events for the second submission
+        vm.recordLogs();
+
         // Replace with new rating
         uint8 newScore = 5;
         uint64 newStake = ratings.MIN_STAKE() * 2;
@@ -117,12 +120,26 @@ contract RatingTest is Test {
         // Check balance - should have received refund of initial stake
         uint256 expectedRefund = initialStake;
         uint256 balanceAfter = address(this).balance;
-        assertEq(balanceAfter, balanceBefore + expectedRefund - newStake);
+        assertEq(balanceAfter, balanceBefore + expectedRefund - newStake, "balanceAfter");
 
         // Check new rating is saved
-        Ratings.Rating memory r = ratings.getRating(testUri, address(this));
-        assertEq(r.score, newScore);
-        assertEq(r.stake, newStake / ratings.STAKE_PER_SECOND());
+        Ratings.Rating memory r = ratings.getRatingByString(testUri, address(this));
+        assertEq(r.score, newScore, "r.score");
+        assertEq(r.stake, newStake / ratings.STAKE_PER_SECOND(), "r.stake");
+
+        // Verify the UriRevealed event is NOT emitted on rating replacement
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes32 uriRevealedSignature = keccak256("UriRevealed(bytes32,string)");
+        
+        bool foundUriRevealed = false;
+        for (uint i = 0; i < entries.length; i++) {
+            if (entries[i].topics[0] == uriRevealedSignature) {
+                foundUriRevealed = true;
+                break;
+            }
+        }
+        
+        assertFalse(foundUriRevealed, "UriRevealed should not be emitted for already revealed URIs");
     }
 
     // Test removing your own rating
@@ -143,7 +160,7 @@ contract RatingTest is Test {
         assertEq(address(this).balance, balanceBefore + expectedRefund);
 
         // Check rating is removed
-        Ratings.Rating memory r = ratings.getRating(testUri, address(this));
+        Ratings.Rating memory r = ratings.getRatingByString(testUri, address(this));
         assertEq(r.score, 0);
         assertEq(r.stake, 0);
         assertEq(r.posted, 0);
@@ -154,7 +171,7 @@ contract RatingTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(
                 Ratings.NoSuchRating.selector,
-                testUri,
+                keccak256(bytes(testUri)),
                 address(this)
             )
         );
@@ -185,7 +202,7 @@ contract RatingTest is Test {
         assertEq(user1.balance, balanceBeforeUser1 + expectedRefund);
 
         // Check rating is removed
-        Ratings.Rating memory r = ratings.getRating(testUri, user1);
+        Ratings.Rating memory r = ratings.getRatingByString(testUri, user1);
         assertEq(r.score, 0);
         assertEq(r.stake, 0);
         assertEq(r.posted, 0);
@@ -234,24 +251,41 @@ contract RatingTest is Test {
         // Get the recorded logs
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        // There should be at least one log entry
-        assertGt(entries.length, 0);
+        // There should be at least two log entries (RatingSubmitted and UriRevealed)
+        assertGe(entries.length, 2);
 
         // The first topic is the event signature
-        bytes32 eventSignature = keccak256(
+        bytes32 ratingEventSignature = keccak256(
             "RatingSubmitted(bytes32,address,uint8,uint64)"
         );
-        assertEq(entries[0].topics[0], eventSignature);
-
-        // Check that the indexed parameters match
-        assertEq(entries[0].topics[1], testUri);
-        assertEq(
-            entries[0].topics[2],
-            bytes32(uint256(uint160(address(this))))
+        
+        bytes32 uriRevealedSignature = keccak256(
+            "UriRevealed(bytes32,string)"
         );
-
-        // For non-indexed parameters, we'd need to decode the data
-        // This is a simpler approach that just verifies the event was emitted with correct indexed params
+        
+        // Find both events
+        bytes32 testUriHash = keccak256(bytes(testUri));
+        bool foundRatingSubmitted = false;
+        bool foundUriRevealed = false;
+        
+        for (uint i = 0; i < entries.length; i++) {
+            if (entries[i].topics[0] == ratingEventSignature) {
+                foundRatingSubmitted = true;
+                // Check that the indexed parameters match
+                assertEq(entries[i].topics[1], testUriHash);
+                assertEq(
+                    entries[i].topics[2],
+                    bytes32(uint256(uint160(address(this))))
+                );
+            } else if (entries[i].topics[0] == uriRevealedSignature) {
+                foundUriRevealed = true;
+                // Check that the indexed parameter matches
+                assertEq(entries[i].topics[1], testUriHash);
+            }
+        }
+        
+        assertTrue(foundRatingSubmitted, "RatingSubmitted event not found");
+        assertTrue(foundUriRevealed, "UriRevealed event not found");
     }
 
     function testPreciseCleanupExpiry() public {
@@ -300,10 +334,10 @@ contract RatingTest is Test {
         ratings.submitRating{value: stake}(testUri, score2);
 
         // Check both ratings exist and are independent
-        Ratings.Rating memory r1 = ratings.getRating(testUri, user1);
+        Ratings.Rating memory r1 = ratings.getRatingByString(testUri, user1);
         assertEq(r1.score, score1);
 
-        Ratings.Rating memory r2 = ratings.getRating(testUri, user2);
+        Ratings.Rating memory r2 = ratings.getRatingByString(testUri, user2);
         assertEq(r2.score, score2);
     }
 
@@ -312,18 +346,18 @@ contract RatingTest is Test {
         uint8 score = 5;
         uint64 stake = ratings.MIN_STAKE();
 
-        bytes32 uri1 = keccak256("place://Five Guys");
-        bytes32 uri2 = keccak256("place://In-N-Out");
+        string memory uri1 = "place://Five Guys";
+        string memory uri2 = "place://In-N-Out";
 
         // Rate two different places
         ratings.submitRating{value: stake}(uri1, score);
         ratings.submitRating{value: stake}(uri2, score - 1);
 
         // Check both ratings exist
-        Ratings.Rating memory r1 = ratings.getRating(uri1, address(this));
+        Ratings.Rating memory r1 = ratings.getRatingByString(uri1, address(this));
         assertEq(r1.score, score);
 
-        Ratings.Rating memory r2 = ratings.getRating(uri2, address(this));
+        Ratings.Rating memory r2 = ratings.getRatingByString(uri2, address(this));
         assertEq(r2.score, score - 1);
     }
 }
