@@ -34,8 +34,8 @@
           "inputs": [
             {
               "name": "uri",
-              "type": "bytes32",
-              "internalType": "bytes32"
+              "type": "string",
+              "internalType": "string"
             },
             {
               "name": "rater",
@@ -51,9 +51,50 @@
           "name": "getRating",
           "inputs": [
             {
-              "name": "uri",
+              "name": "uriHash",
               "type": "bytes32",
               "internalType": "bytes32"
+            },
+            {
+              "name": "rater",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "tuple",
+              "internalType": "struct Ratings.Rating",
+              "components": [
+                {
+                  "name": "score",
+                  "type": "uint8",
+                  "internalType": "uint8"
+                },
+                {
+                  "name": "posted",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                },
+                {
+                  "name": "stake",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                }
+              ]
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "getRatingByString",
+          "inputs": [
+            {
+              "name": "uri",
+              "type": "string",
+              "internalType": "string"
             },
             {
               "name": "rater",
@@ -127,8 +168,8 @@
           "inputs": [
             {
               "name": "uri",
-              "type": "bytes32",
-              "internalType": "bytes32"
+              "type": "string",
+              "internalType": "string"
             }
           ],
           "outputs": [],
@@ -140,8 +181,8 @@
           "inputs": [
             {
               "name": "uri",
-              "type": "bytes32",
-              "internalType": "bytes32"
+              "type": "string",
+              "internalType": "string"
             },
             {
               "name": "score",
@@ -277,6 +318,25 @@
           "anonymous": false
         },
         {
+          "type": "event",
+          "name": "UriRevealed",
+          "inputs": [
+            {
+              "name": "uriHash",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "uri",
+              "type": "string",
+              "indexed": false,
+              "internalType": "string"
+            }
+          ],
+          "anonymous": false
+        },
+        {
           "type": "error",
           "name": "InvalidRater",
           "inputs": [
@@ -314,7 +374,7 @@
           "name": "NoSuchRating",
           "inputs": [
             {
-              "name": "uri",
+              "name": "uriHash",
               "type": "bytes32",
               "internalType": "bytes32"
             },

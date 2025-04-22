@@ -1,6 +1,4 @@
 import {
-  keccak256,
-  toHex,
   createWalletClient,
   createPublicClient,
   http,
@@ -10,7 +8,6 @@ import {
   type PublicClient,
   type Chain,
   type Address,
-  decodeEventLog,
 } from "viem";
 import { mainnet, sepolia, foundry } from "viem/chains";
 import { hashURI } from "../utils/blockchain.utils.js";
@@ -33,6 +30,15 @@ export class BlockchainService {
   private account: Address | null = null;
   private chain: Chain | null = null;
   private cache?: { minStake: bigint; stakePerSecond: bigint };
+  private hashToURI: Map<string, string> = new Map();
+
+  private watchers: {
+    UriRevealed?: () => void;
+    RatingSubmitted?: () => void;
+    RatingReSubmitted?: () => void;
+    RatingRemoved?: () => void;
+    RatingCleanedUp?: () => void;
+  } = {};
 
   private accountListeners: Set<() => void> = new Set();
   private chainListeners: Set<() => void> = new Set();
@@ -111,8 +117,6 @@ export class BlockchainService {
       throw Error(`ChainRater is not deployed on network ${this.chain.id}`);
     const { address, abi } = contractInfo;
 
-    console.log("chain id: ", this.chain.id);
-
     let client;
     if (this.publicClient && this.walletClient)
       client = {
@@ -156,7 +160,53 @@ export class BlockchainService {
 
     this.setChain(chainId);
 
+    // Fetch URI mappings
+    this.watchURIMappings();
+    await this.fetchURIMappings();
+
     return this.account;
+  }
+
+  watchURIMappings(): void {
+    if (!this.publicClient || !this.chain) throw new Error("Not connected");
+
+    const contract = this.ratingsContract;
+
+    this.watchers.UriRevealed = this.publicClient.watchContractEvent({
+      abi: contract.abi,
+      address: contract.address,
+      eventName: "UriRevealed",
+      strict: true,
+      onLogs: (logs) => {
+        if (!this.isConnected()) return;
+        for (const log of logs) {
+          const { uriHash, uri } = (log as any).args as {
+            uriHash: string;
+            uri: string;
+          };
+          this.hashToURI.set(uriHash, uri);
+        }
+      },
+    });
+  }
+
+  async fetchURIMappings(): Promise<void> {
+    if (!this.publicClient || !this.chain) throw new Error("Not connected");
+
+    const contract = this.ratingsContract;
+
+    const logs = await this.publicClient?.getContractEvents({
+      abi: contract.abi,
+      address: contract.address,
+      fromBlock: "earliest",
+      toBlock: "latest",
+      eventName: "UriRevealed",
+    });
+
+    for (const log of logs) {
+      const { uriHash, uri } = log.args as { uriHash: string; uri: string };
+      this.hashToURI.set(uriHash, uri);
+    }
   }
 
   private getContractInfo(
@@ -216,21 +266,12 @@ export class BlockchainService {
     if (!this.isConnected() || !this.ratingsContract || !this.chain)
       throw new Error("Not connected");
 
-    const uriHash = hashURI(uri);
-
-    console.log(this.ratingsContract.address);
-
-    const txHash = await this.ratingsContract.write.submitRating(
-      [uriHash, score],
-      {
-        value: stake,
-        chain: this.chain,
-        account: this.account,
-      },
-    );
-    console.log(
-      await this.publicClient?.waitForTransactionReceipt({ hash: txHash }),
-    );
+    const txHash = await this.ratingsContract.write.submitRating([uri, score], {
+      value: stake,
+      chain: this.chain,
+      account: this.account,
+    });
+    await this.publicClient?.waitForTransactionReceipt({ hash: txHash });
   }
 
   async removeRating(uri: string) {
@@ -270,7 +311,6 @@ export class BlockchainService {
     ])) as unknown as RatingStruct;
 
     const stakePerSecond = await this.stakePerSecond();
-    console.log(stake, stakePerSecond);
     const stakeInWei = stake * stakePerSecond;
 
     return {
@@ -298,7 +338,6 @@ export class BlockchainService {
         rater,
       },
     });
-    console.log("logs:", logs);
 
     const events: Record<string, RatingLog> = {};
     for (const log of logs) {
@@ -332,12 +371,10 @@ export class BlockchainService {
         add,
       };
     }
-    console.log(events);
 
     const ratings: Rating[] = [];
     for (const uriHash in events) {
       const event = events[uriHash];
-      console.log("uriHash:", uriHash, "event:", event);
       if (!event.add) continue;
 
       const rating = await this.getRating(event.uriHash, event.rater);
@@ -351,6 +388,7 @@ export class BlockchainService {
         stake: event.stake,
         posted: rating.posted,
         expirationTime: rating.expirationTime,
+        decodedURI: this.hashToURI.get(uriHash),
       });
     }
     return ratings;

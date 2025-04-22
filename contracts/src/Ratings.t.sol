@@ -32,9 +32,20 @@ contract RatingTest is Test {
     function testSubmitRating() public {
         uint8 score = 5;
         uint64 stake = ratings.MIN_STAKE();
+        bytes32 testUriHash = keccak256(bytes(testUri));
 
-        // Just send the MIN_STAKE value directly
+        vm.recordLogs();
+
         ratings.submitRating{value: stake}(testUri, score);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        assertEq(entries.length, 2);
+        assertEq(entries[0].topics[0], keccak256("UriRevealed(bytes32,string)"), "UriRevealed topic[0]");
+        assertEq(entries[0].topics[1], testUriHash, "UriRevealed topic[1]");
+        assertEq(abi.decode(entries[0].data, (string)), testUri,"UriRevealed data");
+
+        assertEq(entries[1].topics[0], keccak256("RatingSubmitted(bytes32,address,uint8,uint64)"));
+        
 
         Ratings.Rating memory r = ratings.getRatingByString(
             testUri,
