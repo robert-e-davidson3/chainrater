@@ -2,8 +2,8 @@ import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import {
   type SearchResult,
-  Rating,
   BlockchainService,
+  ExistingRating,
 } from "../services/blockchain.service.js";
 import { formatETH, formatTimeAgo } from "../utils/blockchain.utils.js";
 
@@ -606,9 +606,10 @@ export class RatingSearch extends LitElement {
       ) {
         try {
           // Get ratings for the specified URI
-          const ratings: Rating[] = await this.blockchainService.getURIRatings(
-            this.searchInput,
-          );
+          const ratings = await this.blockchainService.getRatings({
+            uri: this.searchInput,
+            deleted: false,
+          });
 
           if (ratings.length > 0) {
             // Calculate average score
@@ -635,52 +636,33 @@ export class RatingSearch extends LitElement {
       // For "cleanup" searches, we look for expired ratings
       if (this.searchType === "cleanup") {
         try {
-          // In a real implementation, we would have a more specialized query
-          // to find expired ratings. Since we don't have that yet, we'll
-          // check all ratings from all users to find expired ones.
+          // Get all expired ratings that haven't been deleted
+          const expiredRatings = (await this.blockchainService.getRatings({
+            expired: true,
+            deleted: false,
+          })) as ExistingRating[];
 
-          // This is inefficient and just for demonstration - in production
-          // you would want to use an indexer or specialized query
-          const now = Date.now() / 1000; // current time in seconds
+          // Convert each expired rating to a search result
+          for (const rating of expiredRatings) {
+            // Calculate expiration time
+            const stakePerSecond =
+              await this.blockchainService.stakePerSecond();
+            const expirationTime = new Date(
+              (Number(rating.posted) +
+                Number(rating.stake) / Number(stakePerSecond)) *
+                1000,
+            );
 
-          // Get all ratings for the current chain
-          const allEvents =
-            await this.blockchainService.publicClient!.getContractEvents({
-              address: this.blockchainService.ratingsContract.address,
-              abi: this.blockchainService.ratingsContract.abi,
-              eventName: "RatingSubmitted",
-              fromBlock: "earliest",
-              toBlock: "latest",
+            results.push({
+              uriHash: rating.uriHash,
+              decodedURI: rating.decodedURI,
+              averageScore: rating.score,
+              ratingCount: 1,
+              stake: rating.stake.toString(),
+              expirationTime: expirationTime,
+              isExpired: true,
+              rater: rating.rater,
             });
-
-          // Process each event
-          for (const event of allEvents) {
-            const { uri, rater } = event.args as any;
-
-            try {
-              // Get the full rating to check if it's expired
-              const rating = await this.blockchainService.getRating(uri, rater);
-
-              // Check if rating is expired
-              if (
-                rating &&
-                Number(rating.posted) + Number(rating.stake) < now
-              ) {
-                results.push({
-                  uriHash: uri,
-                  decodedURI: rating.decodedURI,
-                  averageScore: rating.score,
-                  ratingCount: 1,
-                  stake: rating.stake.toString(),
-                  expirationTime: rating.expirationTime,
-                  isExpired: true,
-                  rater: rater,
-                });
-              }
-            } catch (error) {
-              // Skip this rating if there's an error
-              console.warn(`Error checking if rating is expired:`, error);
-            }
           }
         } catch (error) {
           console.warn("Error fetching expired ratings:", error);
@@ -689,10 +671,10 @@ export class RatingSearch extends LitElement {
 
       // Filter and sort results based on search type
       this.processResults(results);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Search error:", error);
       this.errorMessage =
-        error.message || "Failed to search. Please try again.";
+        error.message ?? "Failed to search. Please try again.";
       this.searchResults = [];
     } finally {
       this.isSearching = false;
@@ -786,7 +768,7 @@ export class RatingSearch extends LitElement {
           composed: true,
         }),
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to cleanup rating:", error);
       this.errorMessage = `Transaction failed: ${error.message || "Unknown error"}`;
     }
