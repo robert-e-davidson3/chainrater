@@ -28,20 +28,6 @@ const chains = [mainnet, sepolia, foundry];
 type CHAIN_IDS = (typeof chains)[number]["id"];
 // type CHAIN_IDS = `${(typeof chains)[number]["id"]}`;
 
-interface Cache {
-  minStake?: bigint;
-  stakePerSecond?: bigint;
-  hashToURI: Map<string, string>;
-  ratings: Map<string, Map<Address, Rating>>;
-}
-
-function defaultCache(): Cache {
-  return {
-    hashToURI: new Map(),
-    ratings: new Map(),
-  };
-}
-
 export class BlockchainService {
   // Singleton instance
   private static instance: BlockchainService;
@@ -50,7 +36,7 @@ export class BlockchainService {
   private publicClient: PublicClient | null = null;
   private account: Address | null = null;
   private chain: Chain | null = null;
-  private cache: Cache = defaultCache();
+  readonly cache: Cache = new Cache();
 
   private watchers: {
     UriRevealed?: () => void;
@@ -86,7 +72,7 @@ export class BlockchainService {
   }
 
   setChain(chainId: number): void {
-    this.cache = defaultCache();
+    this.cache.clear();
 
     const currentChain = chains.find((chain) => chain.id === chainId);
     if (!currentChain) {
@@ -200,7 +186,7 @@ export class BlockchainService {
         if (!this.isConnected()) return;
         for (const log of logs) {
           const { uriHash, uri } = (log as any).args as Log.UriRevealed;
-          this.cache.hashToURI.set(uriHash, uri);
+          this.cache.setUriHash(uri, uriHash);
         }
       },
     );
@@ -212,12 +198,10 @@ export class BlockchainService {
         const { uriHash, rater, score, stake } =
           log.args as Log.RatingSubmitted;
 
-        if (!this.cache.ratings.has(uriHash))
-          this.cache.ratings.set(uriHash, new Map());
+        const rating = this.cache.getRating(uriHash, rater);
 
-        const rating = this.cache.ratings.get(uriHash)?.get(rater);
         if (!rating || rating.latestBlockNumber < blockNumber) {
-          this.cache.ratings.get(uriHash)?.set(rater, {
+          this.cache.setRating({
             uriHash,
             rater,
             score,
@@ -236,12 +220,10 @@ export class BlockchainService {
         const { blockNumber }: { blockNumber: bigint } = log;
         const { uriHash, rater } = log.args as Log.RatingRemoved;
 
-        if (!this.cache.ratings.has(uriHash))
-          this.cache.ratings.set(uriHash, new Map());
+        const rating = this.cache.getRating(uriHash, rater);
 
-        const rating = this.cache.ratings.get(uriHash)?.get(rater);
         if (!rating || rating.latestBlockNumber < blockNumber) {
-          this.cache.ratings.get(uriHash)?.set(rater, {
+          this.cache.setRating({
             uriHash,
             rater,
             latestBlockNumber: blockNumber,
@@ -292,7 +274,7 @@ export class BlockchainService {
       if (!this.isConnected()) return;
       for (const log of logs) {
         const { uriHash, uri } = (log as any).args as Log.UriRevealed;
-        this.cache.hashToURI.set(uriHash, uri);
+        this.cache.setUriHash(uri, uriHash);
       }
     };
 
@@ -566,6 +548,57 @@ export class BlockchainService {
   // }
 }
 
+class Cache {
+  minStake?: bigint;
+  stakePerSecond?: bigint;
+  private hashToURI: Map<string, string> = new Map();
+  // URI hash -> rater address -> Rating
+  private ratings: Map<string, Map<Address, Rating>> = new Map();
+
+  clear() {
+    this.minStake = undefined;
+    this.stakePerSecond = undefined;
+    this.hashToURI.clear();
+    this.ratings.clear();
+  }
+
+  setUriHash(uri: string, hash?: string) {
+    hash = hash ?? hashURI(uri);
+    this.hashToURI.set(hash, uri);
+  }
+
+  getUriHash(uri: string): string | undefined {
+    return this.hashToURI.get(hashURI(uri));
+  }
+
+  setRating(rating: Rating) {
+    if (!this.ratings.has(rating.uriHash))
+      this.ratings.set(rating.uriHash, new Map());
+  }
+
+  getRating(uriOrHash: string, rater: Address): Rating | undefined {
+    const uriHash = uriOrHash.startsWith("0x") ? uriOrHash : hashURI(uriOrHash);
+    const raterMap = this.ratings.get(uriHash);
+    if (!raterMap) return undefined;
+    return raterMap.get(rater);
+  }
+
+  getRatingsForURI(uri: string): Rating[] {
+    const uriHash = hashURI(uri);
+    const ratings = this.ratings.get(uriHash);
+    return ratings ? Array.from(ratings.values()) : [];
+  }
+
+  getRatingsForRater(rater: Address): Rating[] {
+    const ratings: Rating[] = [];
+    this.ratings.forEach((raterMap) => {
+      const rating = raterMap.get(rater);
+      if (rating) ratings.push(rating);
+    });
+    return ratings;
+  }
+}
+
 namespace RatingsContract {
   export function handleEvent<
     ABI extends typeof deployments.contracts.Ratings.abi,
@@ -630,7 +663,7 @@ function addressOrThrow(addresses: any, id: number): Address {
   return address;
 }
 
-function calculateExpirationTime(
+export function calculateExpirationTime(
   posted: bigint,
   stake: bigint,
   stakePerSecond: bigint,
@@ -657,16 +690,6 @@ namespace Log {
     uriHash: string;
     rater: Address;
   };
-}
-
-interface ContractInfo {
-  addresses: Record<string, `0x${string}`>;
-  abi: any[];
-}
-
-interface ContractDeploymentInfo {
-  address: `0x${string}`;
-  abi: any[];
 }
 
 interface RatingStruct {
