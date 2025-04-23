@@ -15,7 +15,7 @@ import { Address } from "viem";
 export class RatingStars extends LitElement {
   @property({ type: Number }) score: number = 0;
 
-  static styles = cssx`
+  static styles = css`
     :host {
       color: #f1c40f;
       font-size: 1.25rem;
