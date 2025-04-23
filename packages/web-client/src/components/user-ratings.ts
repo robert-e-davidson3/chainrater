@@ -1,11 +1,15 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { BlockchainService } from "../services/blockchain.service";
-import { formatETH, formatTimeRemaining } from "../utils/blockchain.utils";
-import type { Rating } from "../types/rating.types";
+import {
+  type Rating,
+  BlockchainService,
+} from "../services/blockchain.service.js";
+import { formatETH, formatTimeRemaining } from "../utils/blockchain.utils.js";
 
 @customElement("user-ratings")
 export class UserRatings extends LitElement {
+  // TODO userRatings should come from the blockchain service and update when it updates...
+  //      so when blockchain service's cache.ratings changes, so should the userRatings array here
   @property({ type: Array }) userRatings: Rating[] = [];
   @property({ type: Object }) totalStake = BigInt(0);
   @property({ type: Boolean }) loading = true;

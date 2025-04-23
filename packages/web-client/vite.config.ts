@@ -1,9 +1,17 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
+import checker from "vite-plugin-checker";
 
 export default defineConfig({
+  plugins: [
+    checker({
+      typescript: true,
+      // Optional: Enable eslint checking
+      // eslint: { lintCommand: 'eslint "./src/**/*.{ts,tsx}"' },
+    }),
+  ],
   build: {
-    target: 'es2022',
-    outDir: 'dist',
+    target: "es2022",
+    outDir: "dist",
     sourcemap: true,
   },
   server: {
@@ -12,11 +20,11 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': '/src',
+      "@": "/src",
     },
   },
   preview: {
     port: 5000,
   },
-  publicDir: 'public',
+  publicDir: "public",
 });

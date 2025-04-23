@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { BlockchainService } from "../services/blockchain.service";
-import { shortenAddress } from "../utils/blockchain.utils";
+import { BlockchainService } from "../services/blockchain.service.js";
+import { shortenAddress } from "../utils/blockchain.utils.js";
 
 @customElement("header-nav")
 export class HeaderNav extends LitElement {
