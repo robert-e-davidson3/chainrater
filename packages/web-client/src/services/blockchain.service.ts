@@ -318,7 +318,7 @@ export class BlockchainService {
     return !!this.account && !!this.walletClient && !!this.chain;
   }
 
-  get address(): string | null {
+  get address(): Address | null {
     return this.account;
   }
 

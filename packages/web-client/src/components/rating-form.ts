@@ -2,7 +2,7 @@ import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { parseEther } from "viem";
 import {
-  type Rating,
+  type ExistingRating,
   BlockchainService,
 } from "../services/blockchain.service.js";
 import { formatETH } from "../utils/blockchain.utils.js";
@@ -15,7 +15,7 @@ export class RatingForm extends LitElement {
   @property({ type: String }) stakeInput = "";
   @property({ type: Object }) minStake = BigInt(0);
   @property({ type: Boolean }) isEditing = false;
-  @property({ type: Object }) existingRating: Rating | null = null;
+  @property({ type: Object }) existingRating: ExistingRating | null = null;
 
   @state() private isSubmitting = false;
   @state() private errorMessage = "";
@@ -186,7 +186,7 @@ export class RatingForm extends LitElement {
             id="uri"
             type="text"
             .value=${this.uriInput}
-            @input=${(e) => (this.uriInput = e.target.value)}
+            @input=${(e: any) => (this.uriInput = e.target.value)}
             ?disabled=${this.isEditing}
             placeholder="e.g., restaurant://Name, product://Brand"
           />
@@ -231,7 +231,7 @@ export class RatingForm extends LitElement {
             min="0"
             step="0.001"
             .value=${this.stakeInput}
-            @input=${(e) => (this.stakeInput = e.target.value)}
+            @input=${(e: any) => (this.stakeInput = e.target.value)}
           />
           <div class="helper-text">
             Minimum stake:
@@ -307,6 +307,33 @@ export class RatingForm extends LitElement {
         " ETH",
         "",
       );
+    } else if (
+      this.isEditing &&
+      this.uriInput &&
+      this.blockchainService.isConnected()
+    ) {
+      // If editing mode but we don't have the existing rating, try to fetch it
+      try {
+        const address = this.blockchainService.address;
+        if (address) {
+          const ratings = (await this.blockchainService.getRatings({
+            uri: this.uriInput,
+            rater: address,
+            deleted: false,
+          })) as ExistingRating[];
+
+          if (ratings.length > 0) {
+            this.existingRating = ratings[0];
+            this.scoreInput = this.existingRating.score;
+            this.stakeInput = formatETH(this.existingRating.stake).replace(
+              " ETH",
+              "",
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching existing rating:", error);
+      }
     }
   }
 
@@ -389,7 +416,7 @@ export class RatingForm extends LitElement {
           composed: true,
         }),
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting rating:", error);
       this.errorMessage = `Transaction failed: ${error.message || "Unknown error"}`;
     } finally {
@@ -418,8 +445,38 @@ export class RatingForm extends LitElement {
   }
 
   // Method to set values when navigating from another component
-  setValues(uri: string, score: number = 3, stake: string = "") {
+  async setValues(uri: string, score: number = 3, stake: string = "") {
     this.uriInput = uri;
+
+    // Check if the user already has a rating for this URI
+    if (uri && this.blockchainService.isConnected()) {
+      try {
+        const address = this.blockchainService.address;
+        if (address) {
+          const ratings = (await this.blockchainService.getRatings({
+            uri,
+            rater: address,
+            deleted: false,
+          })) as ExistingRating[];
+
+          if (ratings.length > 0) {
+            // User already rated this item
+            this.existingRating = ratings[0];
+            this.isEditing = true;
+            this.scoreInput = this.existingRating.score;
+            this.stakeInput = formatETH(this.existingRating.stake).replace(
+              " ETH",
+              "",
+            );
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking existing rating:", error);
+      }
+    }
+
+    // If no existing rating or error, use provided values
     this.scoreInput = score;
     this.stakeInput = stake;
   }
