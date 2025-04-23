@@ -1,36 +1,91 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { BlockchainService } from "../services/blockchain.service.js";
+import {
+  type SearchResult,
+  Rating,
+  BlockchainService,
+} from "../services/blockchain.service.js";
 import { formatETH, formatTimeAgo } from "../utils/blockchain.utils.js";
-import type { SearchResult } from "../types/rating.types.js";
 
-@customElement("rating-search")
-export class RatingSearch extends LitElement {
-  @property({ type: String }) searchInput = "";
-  @property({ type: String }) searchType = "all";
-  @property({ type: Array }) searchResults: SearchResult[] = [];
+const SEARCH_TYPES = ["all", "guide", "rate", "cleanup"];
+type SearchType = (typeof SEARCH_TYPES)[number];
 
-  @state() private isSearching = false;
-  @state() private errorMessage = "";
-
-  private blockchainService = BlockchainService.getInstance();
+/**
+ * Search type info component
+ */
+@customElement("search-type-info")
+export class SearchTypeInfo extends LitElement {
+  @property({ type: String }) searchType: SearchType = "all";
 
   static styles = css`
     :host {
       display: block;
+    }
+
+    .search-type-info {
+      border-radius: 8px;
       padding: 1rem;
-      max-width: 1200px;
-      margin: 0 auto;
+      background-color: #f8f9fa;
+      border-left: 3px solid #3498db;
+      margin-bottom: 1rem;
     }
 
-    .search {
-      display: grid;
-      gap: 1.5rem;
-    }
-
-    h2 {
+    h3 {
       margin-top: 0;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
       color: #333;
+    }
+
+    p {
+      margin: 0;
+      color: #666;
+      font-size: 0.875rem;
+    }
+  `;
+
+  render() {
+    const descriptions: { [t: SearchType]: string } = {
+      all: "Search across all ratings matching your query.",
+      guide: "Find the highest rated items to guide your decisions.",
+      rate: "Discover URIs for items you want to rate.",
+      cleanup: "Find expired ratings to cleanup and earn rewards.",
+    };
+
+    return html`
+      <div class="search-type-info">
+        <h3>${this.getSearchTypeTitle()}</h3>
+        <p>${descriptions[this.searchType]}</p>
+      </div>
+    `;
+  }
+
+  getSearchTypeTitle() {
+    switch (this.searchType) {
+      case "guide":
+        return "Highest Rated Items";
+      case "rate":
+        return "Find URI for Rating";
+      case "cleanup":
+        return "Expired Ratings";
+      default:
+        return "All Ratings";
+    }
+  }
+}
+
+/**
+ * Search controls component
+ */
+@customElement("search-controls")
+export class SearchControls extends LitElement {
+  @property({ type: String }) searchInput: string = "";
+  @property({ type: String }) searchType: string = "all";
+  @property({ type: Boolean }) isSearching: boolean = false;
+
+  static styles = css`
+    :host {
+      display: block;
     }
 
     .search-controls {
@@ -82,8 +137,268 @@ export class RatingSearch extends LitElement {
       background-color: #95a5a6;
       cursor: not-allowed;
     }
+  `;
 
-    .search-results {
+  render() {
+    return html`
+      <div class="search-controls">
+        <input
+          type="text"
+          placeholder="Search by name or keyword..."
+          .value=${this.searchInput}
+          @input=${this.handleInputChange}
+          @keydown=${this.handleKeyDown}
+        />
+
+        <select .value=${this.searchType} @change=${this.handleTypeChange}>
+          <option value="all">All Ratings</option>
+          <option value="guide">Highest Rated</option>
+          <option value="rate">Find URI for Rating</option>
+          <option value="cleanup">Find Expired Ratings</option>
+        </select>
+
+        <button @click=${this.handleSearch} ?disabled=${this.isSearching}>
+          ${this.isSearching ? "Searching..." : "Search"}
+        </button>
+      </div>
+    `;
+  }
+
+  handleInputChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    this.searchInput = input.value;
+    this.dispatchEvent(
+      new CustomEvent("search-input-change", {
+        detail: { value: input.value },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  handleTypeChange(e: Event) {
+    const select = e.target as HTMLSelectElement;
+    this.searchType = select.value;
+    this.dispatchEvent(
+      new CustomEvent("search-type-change", {
+        detail: { value: select.value },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  handleKeyDown(e: KeyboardEvent) {
+    if (e.key === "Enter") {
+      this.dispatchEvent(
+        new CustomEvent("perform-search", {
+          bubbles: true,
+          composed: true,
+        }),
+      );
+    }
+  }
+
+  handleSearch() {
+    this.dispatchEvent(
+      new CustomEvent("perform-search", {
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+}
+
+/**
+ * Error message component
+ */
+@customElement("error-display")
+export class ErrorDisplay extends LitElement {
+  @property({ type: String }) message: string = "";
+
+  static styles = css`
+    :host {
+      display: block;
+    }
+
+    .error {
+      color: #e74c3c;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background-color: rgba(231, 76, 60, 0.1);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+  `;
+
+  render() {
+    if (!this.message) {
+      return html``;
+    }
+
+    return html` <div class="error"><span>⚠️</span> ${this.message}</div> `;
+  }
+}
+
+/**
+ * Regular search result item component
+ */
+@customElement("regular-result-item")
+export class RegularResultItem extends LitElement {
+  @property({ type: Object }) result!: SearchResult;
+
+  static styles = css`
+    :host {
+      display: contents;
+    }
+
+    .uri {
+      font-weight: 500;
+      flex-basis: 40%;
+    }
+
+    .rating-summary {
+      text-align: center;
+      flex-basis: 30%;
+    }
+
+    .avg-score {
+      font-weight: bold;
+      font-size: 1.25rem;
+      color: #f1c40f;
+    }
+
+    .rating-count {
+      color: #666;
+      font-size: 0.875rem;
+      margin-left: 0.5rem;
+    }
+
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s;
+      font-size: 0.875rem;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+  `;
+
+  render() {
+    return html`
+      <div class="uri">
+        ${this.result.decodedURI ||
+        this.result.uriHash.substring(0, 10) + "..."}
+      </div>
+      <div class="rating-summary">
+        <span class="avg-score">${this.result.averageScore.toFixed(1)}</span>
+        <span class="rating-count">(${this.result.ratingCount} ratings)</span>
+      </div>
+      <button @click=${this.handleRate}>Rate This</button>
+    `;
+  }
+
+  handleRate() {
+    this.dispatchEvent(
+      new CustomEvent("rate-item", {
+        detail: {
+          uri: this.result.decodedURI,
+          uriHash: this.result.uriHash,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+}
+
+/**
+ * Cleanup result item component
+ */
+@customElement("cleanup-result-item")
+export class CleanupResultItem extends LitElement {
+  @property({ type: Object }) result!: SearchResult;
+
+  static styles = css`
+    :host {
+      display: contents;
+    }
+
+    .uri {
+      font-weight: 500;
+      flex-basis: 40%;
+    }
+
+    .expiration {
+      text-align: center;
+      flex-basis: 30%;
+    }
+
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s;
+      font-size: 0.875rem;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+  `;
+
+  render() {
+    return html`
+      <div class="uri">
+        ${this.result.decodedURI ||
+        this.result.uriHash.substring(0, 10) + "..."}
+      </div>
+      <div class="expiration">
+        Expired ${formatTimeAgo(this.result.expirationTime || new Date())}
+      </div>
+      <button @click=${this.handleCleanup}>
+        Cleanup (${formatETH(BigInt(this.result.stake || 0))})
+      </button>
+    `;
+  }
+
+  handleCleanup() {
+    this.dispatchEvent(
+      new CustomEvent("cleanup-rating", {
+        detail: { result: this.result },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+}
+
+/**
+ * Search results list component
+ */
+@customElement("search-results-list")
+export class SearchResultsList extends LitElement {
+  @property({ type: Array }) results: SearchResult[] = [];
+  @property({ type: String }) searchType: string = "all";
+  @property({ type: Boolean }) isSearching: boolean = false;
+  @property({ type: String }) searchInput: string = "";
+
+  static styles = css`
+    :host {
+      display: block;
       background-color: #fff;
       border-radius: 8px;
       padding: 1.5rem;
@@ -109,34 +424,6 @@ export class RatingSearch extends LitElement {
       border-bottom: none;
     }
 
-    .uri {
-      font-weight: 500;
-      flex-basis: 40%;
-    }
-
-    .rating-summary,
-    .expiration {
-      text-align: center;
-      flex-basis: 30%;
-    }
-
-    .avg-score {
-      font-weight: bold;
-      font-size: 1.25rem;
-      color: #f1c40f;
-    }
-
-    .rating-count {
-      color: #666;
-      font-size: 0.875rem;
-      margin-left: 0.5rem;
-    }
-
-    li button {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.875rem;
-    }
-
     .empty-results {
       color: #999;
       text-align: center;
@@ -150,118 +437,18 @@ export class RatingSearch extends LitElement {
       min-height: 200px;
       color: #999;
     }
-
-    .error {
-      color: #e74c3c;
-      margin-top: 1rem;
-      padding: 0.75rem;
-      background-color: rgba(231, 76, 60, 0.1);
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    /* Search type descriptions */
-    .search-type-info {
-      border-radius: 8px;
-      padding: 1rem;
-      background-color: #f8f9fa;
-      border-left: 3px solid #3498db;
-      margin-bottom: 1rem;
-    }
-
-    .search-type-info h3 {
-      margin-top: 0;
-      margin-bottom: 0.5rem;
-      font-size: 1rem;
-      color: #333;
-    }
-
-    .search-type-info p {
-      margin: 0;
-      color: #666;
-      font-size: 0.875rem;
-    }
   `;
 
   render() {
-    return html`
-      <section class="search">
-        <h2>Search Ratings</h2>
-
-        ${this.renderSearchTypeInfo()}
-
-        <div class="search-controls">
-          <input
-            type="text"
-            placeholder="Search by name or keyword..."
-            .value=${this.searchInput}
-            @input=${(e) => (this.searchInput = e.target.value)}
-            @keydown=${(e) => e.key === "Enter" && this.performSearch()}
-          />
-
-          <select
-            .value=${this.searchType}
-            @change=${(e) => (this.searchType = e.target.value)}
-          >
-            <option value="all">All Ratings</option>
-            <option value="guide">Highest Rated</option>
-            <option value="rate">Find URI for Rating</option>
-            <option value="cleanup">Find Expired Ratings</option>
-          </select>
-
-          <button @click=${this.performSearch} ?disabled=${this.isSearching}>
-            ${this.isSearching ? "Searching..." : "Search"}
-          </button>
-        </div>
-
-        ${this.errorMessage
-          ? html`
-              <div class="error"><span>⚠️</span> ${this.errorMessage}</div>
-            `
-          : ""}
-
-        <div class="search-results">${this.renderSearchResults()}</div>
-      </section>
-    `;
+    return html` ${this.renderContent()} `;
   }
 
-  renderSearchTypeInfo() {
-    const descriptions = {
-      all: "Search across all ratings matching your query.",
-      guide: "Find the highest rated items to guide your decisions.",
-      rate: "Discover URIs for items you want to rate.",
-      cleanup: "Find expired ratings to cleanup and earn rewards.",
-    };
-
-    return html`
-      <div class="search-type-info">
-        <h3>${this.getSearchTypeTitle()}</h3>
-        <p>${descriptions[this.searchType]}</p>
-      </div>
-    `;
-  }
-
-  getSearchTypeTitle() {
-    switch (this.searchType) {
-      case "guide":
-        return "Highest Rated Items";
-      case "rate":
-        return "Find URI for Rating";
-      case "cleanup":
-        return "Expired Ratings";
-      default:
-        return "All Ratings";
-    }
-  }
-
-  renderSearchResults() {
+  renderContent() {
     if (this.isSearching) {
       return html`<div class="loading">Searching...</div>`;
     }
 
-    if (!this.searchResults.length) {
+    if (!this.results.length) {
       if (this.searchInput) {
         return html`<p class="empty-results">
           No results found for "${this.searchInput}"
@@ -274,41 +461,124 @@ export class RatingSearch extends LitElement {
 
     return html`
       <ul>
-        ${this.searchResults.map(
+        ${this.results.map(
           (result) => html`
             <li>
-              <div class="uri">
-                ${result.decodedURI || result.uriHash.substring(0, 10) + "..."}
-              </div>
-
               ${this.searchType === "cleanup"
                 ? html`
-                    <div class="expiration">
-                      Expired
-                      ${formatTimeAgo(result.expirationTime || new Date())}
-                    </div>
-                    <button @click=${() => this.cleanupRating(result)}>
-                      Cleanup (${formatETH(BigInt(result.stake || 0))})
-                    </button>
+                    <cleanup-result-item
+                      .result=${result}
+                      @cleanup-rating=${(e: CustomEvent) =>
+                        this.handleCleanupRating(e)}
+                    ></cleanup-result-item>
                   `
                 : html`
-                    <div class="rating-summary">
-                      <span class="avg-score"
-                        >${result.averageScore.toFixed(1)}</span
-                      >
-                      <span class="rating-count"
-                        >(${result.ratingCount} ratings)</span
-                      >
-                    </div>
-                    <button @click=${() => this.rateItem(result)}>
-                      Rate This
-                    </button>
+                    <regular-result-item
+                      .result=${result}
+                      @rate-item=${(e: CustomEvent) => this.handleRateItem(e)}
+                    ></regular-result-item>
                   `}
             </li>
           `,
         )}
       </ul>
     `;
+  }
+
+  handleRateItem(e: CustomEvent) {
+    this.dispatchEvent(
+      new CustomEvent("rate-item", {
+        detail: e.detail,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  handleCleanupRating(e: CustomEvent) {
+    this.dispatchEvent(
+      new CustomEvent("cleanup-rating", {
+        detail: e.detail,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+}
+
+/**
+ * Main rating search component
+ */
+@customElement("rating-search")
+export class RatingSearch extends LitElement {
+  @property({ type: String }) searchInput = "";
+  @property({ type: String }) searchType = "all";
+  @property({ type: Array }) searchResults: SearchResult[] = [];
+
+  @state() private isSearching = false;
+  @state() private errorMessage = "";
+
+  private blockchainService = BlockchainService.getInstance();
+
+  static styles = css`
+    :host {
+      display: block;
+      padding: 1rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .search {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #333;
+    }
+  `;
+
+  render() {
+    return html`
+      <section class="search">
+        <h2>Search Ratings</h2>
+
+        <search-type-info .searchType=${this.searchType}></search-type-info>
+
+        <search-controls
+          .searchInput=${this.searchInput}
+          .searchType=${this.searchType}
+          .isSearching=${this.isSearching}
+          @search-input-change=${this.handleSearchInputChange}
+          @search-type-change=${this.handleSearchTypeChange}
+          @perform-search=${this.performSearch}
+        ></search-controls>
+
+        <error-display .message=${this.errorMessage}></error-display>
+
+        <search-results-list
+          .results=${this.searchResults}
+          .searchType=${this.searchType}
+          .isSearching=${this.isSearching}
+          .searchInput=${this.searchInput}
+          @rate-item=${this.rateItem}
+          @cleanup-rating=${this.handleCleanupRating}
+        ></search-results-list>
+      </section>
+    `;
+  }
+
+  handleSearchInputChange(e: CustomEvent) {
+    this.searchInput = e.detail.value;
+  }
+
+  handleSearchTypeChange(e: CustomEvent) {
+    this.searchType = e.detail.value;
+  }
+
+  handleCleanupRating(e: CustomEvent) {
+    this.cleanupRating(e.detail.result);
   }
 
   async performSearch() {
@@ -336,14 +606,14 @@ export class RatingSearch extends LitElement {
       ) {
         try {
           // Get ratings for the specified URI
-          const ratings = await this.blockchainService.getURIRatings(
+          const ratings: Rating[] = await this.blockchainService.getURIRatings(
             this.searchInput,
           );
 
           if (ratings.length > 0) {
             // Calculate average score
             const totalScore = ratings.reduce(
-              (sum, rating) => sum + rating.score,
+              (sum, rating) => (rating.deleted ? sum : sum + rating.score),
               0,
             );
             const averageScore = totalScore / ratings.length;
@@ -464,14 +734,11 @@ export class RatingSearch extends LitElement {
     }
   }
 
-  rateItem(result: SearchResult) {
+  rateItem(e: CustomEvent) {
     // Dispatch event to switch to rate tab with this URI
     this.dispatchEvent(
       new CustomEvent("rate-item", {
-        detail: {
-          uri: result.decodedURI,
-          uriHash: result.uriHash,
-        },
+        detail: e.detail,
         bubbles: true,
         composed: true,
       }),

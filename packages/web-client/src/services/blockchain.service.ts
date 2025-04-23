@@ -71,6 +71,12 @@ export class BlockchainService {
     }
   }
 
+  async getRatings(filter: GetRatingsFilter): Promise<Rating[]> {
+    if (!this.isConnected() || !this.chain) throw new Error("Not connected");
+    if (filter.expired !== undefined) await this.stakePerSecond();
+    return this.cache.getRatings(filter);
+  }
+
   setChain(chainId: number): void {
     this.cache.clear();
 
@@ -576,6 +582,55 @@ class Cache {
       this.ratings.set(rating.uriHash, new Map());
   }
 
+  getRatings({
+    uriHash,
+    uri,
+    rater,
+    expired,
+    deleted,
+  }: GetRatingsFilter): Rating[] {
+    if (expired !== undefined && deleted !== false)
+      throw new Error("Cannot filter by both expired if deleted != false");
+
+    const filterOnURI = !!uriHash || !!uri;
+
+    let ratings: Rating[] = [];
+
+    if ((uriHash || uri) && rater) {
+      uriHash = uriHash ?? hashURI(uri as string);
+      const rating = this.ratings.get(uriHash)?.get(rater);
+      if (rating) ratings.push(rating);
+    }
+
+    this.ratings.forEach((raterMap, ratingUriHash) => {
+      if (filterOnURI && ratingUriHash !== uriHash) return;
+      raterMap.forEach((rating) => {
+        if (rater && rater !== rating.rater) return;
+        ratings.push(rating);
+      });
+    });
+
+    if (deleted !== undefined)
+      ratings = ratings.filter((rating) => rating.deleted === deleted);
+
+    if (expired !== undefined) {
+      const stakePerSecond = this.stakePerSecond;
+      if (stakePerSecond === undefined) throw Error("stakePerSecond not set");
+      const now = new Date(); // TODO must be same tz etc as blockchain
+      ratings = ratings.filter((rating) => {
+        const { posted, stake } = rating as ExistingRating;
+        const expirationTime = calculateExpirationTime(
+          posted,
+          stake,
+          stakePerSecond,
+        );
+        return expired ? expirationTime < now : expirationTime >= now;
+      });
+    }
+
+    return ratings;
+  }
+
   getRating(uriOrHash: string, rater: Address): Rating | undefined {
     const uriHash = uriOrHash.startsWith("0x") ? uriOrHash : hashURI(uriOrHash);
     const raterMap = this.ratings.get(uriHash);
@@ -598,6 +653,14 @@ class Cache {
     return ratings;
   }
 }
+
+type GetRatingsFilter = {
+  uriHash?: string;
+  uri?: string;
+  rater?: Address;
+  expired?: boolean;
+  deleted?: boolean;
+};
 
 namespace RatingsContract {
   export function handleEvent<
