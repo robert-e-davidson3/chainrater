@@ -2,16 +2,36 @@ import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import {
   BlockchainService,
-  type Rating,
+  type ExistingRating,
 } from "../services/blockchain.service.js";
 import { formatETH } from "../utils/blockchain.utils.js";
+
+interface StakedURIItem {
+  uriHash: string;
+  decodedURI?: string;
+  totalStake: bigint;
+}
+
+interface RatedURIItem {
+  uriHash: string;
+  decodedURI?: string;
+  averageScore: number;
+  ratingCount: number;
+}
+
+interface VarianceURIItem {
+  uriHash: string;
+  decodedURI?: string;
+  variance: number;
+  ratingCount: number;
+}
 
 @customElement("app-dashboard")
 export class Dashboard extends LitElement {
   @property({ type: Object }) tvl = BigInt(0);
-  @property({ type: Array }) topStakedURIs = [];
-  @property({ type: Array }) topRatedURIs = [];
-  @property({ type: Array }) topVarianceURIs = [];
+  @property({ type: Array }) topStakedURIs: StakedURIItem[] = [];
+  @property({ type: Array }) topRatedURIs: RatedURIItem[] = [];
+  @property({ type: Array }) topVarianceURIs: VarianceURIItem[] = [];
   @property({ type: Boolean }) loading = true;
 
   private blockchainService = BlockchainService.getInstance();
@@ -141,7 +161,10 @@ export class Dashboard extends LitElement {
     `;
   }
 
-  renderURIList(items, valueType) {
+  renderURIList(
+    items: (StakedURIItem | RatedURIItem | VarianceURIItem)[],
+    valueType: "stake" | "score" | "variance",
+  ) {
     if (!items || items.length === 0) {
       return html`<p class="empty-list">No data available</p>`;
     }
@@ -151,7 +174,11 @@ export class Dashboard extends LitElement {
         ${items.map(
           (item) => html`
             <li>
-              <a href="#" @click=${() => this.viewItem(item.uri, item.uriHash)}>
+              <a
+                href="#"
+                @click=${() =>
+                  this.viewItem(item.decodedURI || "", item.uriHash)}
+              >
                 ${item.decodedURI || item.uriHash.substring(0, 10) + "..."}
               </a>
               <span class="item-value">
@@ -164,20 +191,23 @@ export class Dashboard extends LitElement {
     `;
   }
 
-  formatValue(item, valueType) {
+  formatValue(
+    item: StakedURIItem | RatedURIItem | VarianceURIItem,
+    valueType: "stake" | "score" | "variance",
+  ): string {
     switch (valueType) {
       case "stake":
-        return formatETH(item.totalStake);
+        return formatETH((item as StakedURIItem).totalStake);
       case "score":
-        return `${item.averageScore.toFixed(1)} ★`;
+        return `${(item as RatedURIItem).averageScore.toFixed(1)} ★`;
       case "variance":
-        return `${item.variance.toFixed(2)}`;
+        return `${(item as VarianceURIItem).variance.toFixed(2)}`;
       default:
         return "";
     }
   }
 
-  viewItem(uri, uriHash) {
+  viewItem(uri: string, uriHash: string) {
     // Dispatch event to switch to rate tab with this URI
     this.dispatchEvent(
       new CustomEvent("view-uri", {
@@ -196,246 +226,110 @@ export class Dashboard extends LitElement {
   async loadDashboardData() {
     this.loading = true;
 
-    try {
-      // Get all active ratings from the blockchain
-      if (!this.blockchainService.isConnected()) {
-        await this.blockchainService.connect().catch(() => {
-          // Silently fail, as this component should work even without connection
-          console.warn("Failed to connect blockchain service for dashboard");
-        });
+    if (!this.blockchainService.isConnected())
+      await this.blockchainService.connect();
+
+    const allRatings = (await this.blockchainService.getRatings({
+      deleted: false,
+    })) as ExistingRating[];
+
+    this.tvl = allRatings.reduce(
+      (sum, rating) => sum + rating.stake,
+      BigInt(0),
+    );
+
+    // Group ratings by URI hash
+    const ratingsByURI = new Map<string, ExistingRating[]>();
+
+    for (const rating of allRatings) {
+      if (!ratingsByURI.has(rating.uriHash)) {
+        ratingsByURI.set(rating.uriHash, []);
       }
+      ratingsByURI.get(rating.uriHash)?.push(rating);
+    }
 
-      // If connection failed, fallback to mock data
-      if (!this.blockchainService.isConnected()) {
-        console.log("Using fallback mock data for dashboard");
-        this.loadMockData();
-        return;
-      }
+    // Process data for top lists
+    interface URIStats {
+      uriHash: string;
+      decodedURI?: string;
+      totalStake: bigint;
+      averageScore: number;
+      ratingCount: number;
+      variance: number;
+      ratings: ExistingRating[];
+    }
 
-      // Get all ratings (not deleted)
-      const allRatings = await this.blockchainService.getRatings({
-        deleted: false,
-      });
+    const uriStats: Map<string, URIStats> = new Map();
 
-      if (allRatings.length === 0) {
-        this.loadMockData();
-        return;
-      }
+    // Calculate stats for each URI
+    for (const [uriHash, ratings] of ratingsByURI.entries()) {
+      if (ratings.length === 0) continue;
 
-      // Calculate TVL (total value locked)
-      this.tvl = allRatings.reduce(
-        (sum, rating) => sum + rating.stake,
-        BigInt(0),
+      const totalStake = ratings.reduce((sum, r) => sum + r.stake, BigInt(0));
+      const ratingCount = ratings.length;
+
+      // Calculate average score
+      const totalScore = ratings.reduce((sum, r) => sum + r.score, 0);
+      const averageScore = totalScore / ratingCount;
+
+      // Calculate variance
+      const squaredDiffs = ratings.reduce(
+        (sum, r) => sum + Math.pow(r.score - averageScore, 2),
+        0,
       );
+      const variance =
+        ratingCount > 1 ? Math.sqrt(squaredDiffs / (ratingCount - 1)) : 0;
 
-      // Group ratings by URI hash
-      const ratingsByURI = new Map<string, Rating[]>();
+      uriStats.set(uriHash, {
+        uriHash,
+        decodedURI: ratings[0].decodedURI,
+        totalStake,
+        averageScore,
+        ratingCount,
+        variance,
+        ratings,
+      });
+    }
 
-      for (const rating of allRatings) {
-        if (!ratingsByURI.has(rating.uriHash)) {
-          ratingsByURI.set(rating.uriHash, []);
-        }
-        ratingsByURI.get(rating.uriHash)?.push(rating);
-      }
-
-      // Process data for top lists
-      const uriStats: Map<
-        string,
-        {
-          uriHash: string;
-          decodedURI?: string;
-          totalStake: bigint;
-          averageScore: number;
-          ratingCount: number;
-          variance: number;
-          ratings: Rating[];
-        }
-      > = new Map();
-
-      // Calculate stats for each URI
-      for (const [uriHash, ratings] of ratingsByURI.entries()) {
-        if (ratings.length === 0) continue;
-
-        const totalStake = ratings.reduce((sum, r) => sum + r.stake, BigInt(0));
-        const ratingCount = ratings.length;
-
-        // Calculate average score
-        const totalScore = ratings.reduce((sum, r) => sum + r.score, 0);
-        const averageScore = totalScore / ratingCount;
-
-        // Calculate variance
-        const squaredDiffs = ratings.reduce(
-          (sum, r) => sum + Math.pow(r.score - averageScore, 2),
-          0,
-        );
-        const variance =
-          ratingCount > 1 ? Math.sqrt(squaredDiffs / (ratingCount - 1)) : 0;
-
-        uriStats.set(uriHash, {
-          uriHash,
-          decodedURI: ratings[0].decodedURI,
-          totalStake,
-          averageScore,
-          ratingCount,
-          variance,
-          ratings,
-        });
-      }
-
-      // Sort for top staked URIs
-      this.topStakedURIs = Array.from(uriStats.values())
-        .sort((a, b) => (b.totalStake > a.totalStake ? 1 : -1))
-        .slice(0, 5)
-        .map((stats) => ({
+    // Sort for top staked URIs
+    this.topStakedURIs = Array.from(uriStats.values())
+      .sort((a, b) => (b.totalStake > a.totalStake ? 1 : -1))
+      .slice(0, 5)
+      .map(
+        (stats): StakedURIItem => ({
           uriHash: stats.uriHash,
           decodedURI: stats.decodedURI,
           totalStake: stats.totalStake,
-        }));
+        }),
+      );
 
-      // Sort for top rated URIs
-      this.topRatedURIs = Array.from(uriStats.values())
-        .filter((stats) => stats.ratingCount >= 2) // Require at least 2 ratings
-        .sort((a, b) => b.averageScore - a.averageScore)
-        .slice(0, 5)
-        .map((stats) => ({
+    // Sort for top rated URIs
+    this.topRatedURIs = Array.from(uriStats.values())
+      .filter((stats) => stats.ratingCount >= 2) // Require at least 2 ratings
+      .sort((a, b) => b.averageScore - a.averageScore)
+      .slice(0, 5)
+      .map(
+        (stats): RatedURIItem => ({
           uriHash: stats.uriHash,
           decodedURI: stats.decodedURI,
           averageScore: stats.averageScore,
           ratingCount: stats.ratingCount,
-        }));
+        }),
+      );
 
-      // Sort for most controversial (highest variance)
-      this.topVarianceURIs = Array.from(uriStats.values())
-        .filter((stats) => stats.ratingCount >= 3) // Require at least 3 ratings for meaningful variance
-        .sort((a, b) => b.variance - a.variance)
-        .slice(0, 5)
-        .map((stats) => ({
+    // Sort for most controversial (highest variance)
+    this.topVarianceURIs = Array.from(uriStats.values())
+      .filter((stats) => stats.ratingCount >= 3) // Require at least 3 ratings for meaningful variance
+      .sort((a, b) => b.variance - a.variance)
+      .slice(0, 5)
+      .map(
+        (stats): VarianceURIItem => ({
           uriHash: stats.uriHash,
           decodedURI: stats.decodedURI,
           variance: stats.variance,
           ratingCount: stats.ratingCount,
-        }));
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
-      // Fallback to mock data if something goes wrong
-      this.loadMockData();
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  // Fallback method to load mock data when blockchain data is unavailable
-  loadMockData() {
-    this.tvl = BigInt(5000000000000000000n); // 5 ETH
-
-    this.topStakedURIs = [
-      {
-        uriHash:
-          "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-        decodedURI: "restaurant://Goy's Vegan Hamburgers",
-        totalStake: BigInt(1000000000000000000n), // 1 ETH
-      },
-      {
-        uriHash:
-          "0x2345678901abcdef2345678901abcdef2345678901abcdef2345678901abcdef",
-        decodedURI: "business://Ethereum Foundation",
-        totalStake: BigInt(800000000000000000n), // 0.8 ETH
-      },
-      {
-        uriHash:
-          "0x3456789012abcdef3456789012abcdef3456789012abcdef3456789012abcdef",
-        decodedURI: "product://Tesla Model 3",
-        totalStake: BigInt(600000000000000000n), // 0.6 ETH
-      },
-      {
-        uriHash:
-          "0x4567890123abcdef4567890123abcdef4567890123abcdef4567890123abcdef",
-        decodedURI: "consumable://Jack Daniel's Whiskey",
-        totalStake: BigInt(400000000000000000n), // 0.4 ETH
-      },
-      {
-        uriHash:
-          "0x5678901234abcdef5678901234abcdef5678901234abcdef5678901234abcdef",
-        decodedURI: "app://Discord",
-        totalStake: BigInt(200000000000000000n), // 0.2 ETH
-      },
-    ];
-
-    this.topRatedURIs = [
-      {
-        uriHash:
-          "0x3456789012abcdef3456789012abcdef3456789012abcdef3456789012abcdef",
-        decodedURI: "product://Tesla Model 3",
-        averageScore: 4.8,
-        ratingCount: 12,
-      },
-      {
-        uriHash:
-          "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-        decodedURI: "restaurant://Goy's Vegan Hamburgers",
-        averageScore: 4.6,
-        ratingCount: 8,
-      },
-      {
-        uriHash:
-          "0x5678901234abcdef5678901234abcdef5678901234abcdef5678901234abcdef",
-        decodedURI: "app://Discord",
-        averageScore: 4.5,
-        ratingCount: 15,
-      },
-      {
-        uriHash:
-          "0x6789012345abcdef6789012345abcdef6789012345abcdef6789012345abcdef",
-        decodedURI: "movie://The Matrix",
-        averageScore: 4.4,
-        ratingCount: 10,
-      },
-      {
-        uriHash:
-          "0x7890123456abcdef7890123456abcdef7890123456abcdef7890123456abcdef",
-        decodedURI: "music://Beethoven's 9th Symphony",
-        averageScore: 4.3,
-        ratingCount: 7,
-      },
-    ];
-
-    this.topVarianceURIs = [
-      {
-        uriHash:
-          "0x8901234567abcdef8901234567abcdef8901234567abcdef8901234567abcdef",
-        decodedURI: "movie://Star Wars: The Last Jedi",
-        variance: 1.8,
-        ratingCount: 20,
-      },
-      {
-        uriHash:
-          "0x9012345678abcdef9012345678abcdef9012345678abcdef9012345678abcdef",
-        decodedURI: "game://Cyberpunk 2077",
-        variance: 1.5,
-        ratingCount: 18,
-      },
-      {
-        uriHash:
-          "0x4567890123abcdef4567890123abcdef4567890123abcdef4567890123abcdef",
-        decodedURI: "consumable://Jack Daniel's Whiskey",
-        variance: 1.3,
-        ratingCount: 25,
-      },
-      {
-        uriHash:
-          "0xa123456789abcdefa123456789abcdefa123456789abcdefa123456789abcdef",
-        decodedURI: "book://The Bible",
-        variance: 1.2,
-        ratingCount: 30,
-      },
-      {
-        uriHash:
-          "0xb234567890abcdefb234567890abcdefb234567890abcdefb234567890abcdef",
-        decodedURI: "person://Kanye West",
-        variance: 1.1,
-        ratingCount: 15,
-      },
-    ];
+        }),
+      );
 
     this.loading = false;
   }

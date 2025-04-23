@@ -36,7 +36,7 @@ export class BlockchainService {
   private publicClient: PublicClient | null = null;
   private account: Address | null = null;
   private chain: Chain | null = null;
-  readonly cache: Cache = new Cache();
+  private readonly cache: Cache = new Cache();
 
   private watchers: {
     UriRevealed?: () => void;
@@ -204,7 +204,7 @@ export class BlockchainService {
         const { uriHash, rater, score, stake } =
           log.args as Log.RatingSubmitted;
 
-        const rating = this.cache.getRating(uriHash, rater);
+        const rating = this.cache.getRatings({ uriHash, rater })[0];
 
         if (!rating || rating.latestBlockNumber < blockNumber) {
           this.cache.setRating({
@@ -226,7 +226,7 @@ export class BlockchainService {
         const { blockNumber }: { blockNumber: bigint } = log;
         const { uriHash, rater } = log.args as Log.RatingRemoved;
 
-        const rating = this.cache.getRating(uriHash, rater);
+        const rating = this.cache.getRatings({ uriHash, rater })[0];
 
         if (!rating || rating.latestBlockNumber < blockNumber) {
           this.cache.setRating({
@@ -631,27 +631,27 @@ class Cache {
     return ratings;
   }
 
-  getRating(uriOrHash: string, rater: Address): Rating | undefined {
-    const uriHash = uriOrHash.startsWith("0x") ? uriOrHash : hashURI(uriOrHash);
-    const raterMap = this.ratings.get(uriHash);
-    if (!raterMap) return undefined;
-    return raterMap.get(rater);
-  }
+  // getRating(uriOrHash: string, rater: Address): Rating | undefined {
+  //   const uriHash = uriOrHash.startsWith("0x") ? uriOrHash : hashURI(uriOrHash);
+  //   const raterMap = this.ratings.get(uriHash);
+  //   if (!raterMap) return undefined;
+  //   return raterMap.get(rater);
+  // }
 
-  getRatingsForURI(uri: string): Rating[] {
-    const uriHash = hashURI(uri);
-    const ratings = this.ratings.get(uriHash);
-    return ratings ? Array.from(ratings.values()) : [];
-  }
+  // getRatingsForURI(uri: string): Rating[] {
+  //   const uriHash = hashURI(uri);
+  //   const ratings = this.ratings.get(uriHash);
+  //   return ratings ? Array.from(ratings.values()) : [];
+  // }
 
-  getRatingsForRater(rater: Address): Rating[] {
-    const ratings: Rating[] = [];
-    this.ratings.forEach((raterMap) => {
-      const rating = raterMap.get(rater);
-      if (rating) ratings.push(rating);
-    });
-    return ratings;
-  }
+  // getRatingsForRater(rater: Address): Rating[] {
+  //   const ratings: Rating[] = [];
+  //   this.ratings.forEach((raterMap) => {
+  //     const rating = raterMap.get(rater);
+  //     if (rating) ratings.push(rating);
+  //   });
+  //   return ratings;
+  // }
 }
 
 type GetRatingsFilter = {

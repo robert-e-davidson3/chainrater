@@ -6,7 +6,6 @@ import {
   ExistingRating,
 } from "../services/blockchain.service.js";
 import { formatETH, formatTimeRemaining } from "../utils/blockchain.utils.js";
-import { Address } from "viem";
 
 /**
  * Rating stars component
@@ -351,13 +350,15 @@ export class RatingsList extends LitElement {
  */
 @customElement("user-ratings")
 export class UserRatings extends LitElement {
-  // TODO userRatings should come from the blockchain service and update when it updates...
-  //      so when blockchain service's cache.ratings changes, so should the userRatings array here
+  // TODO not only get userRatings from blockchainService but also listen for events
+  //      filter events, so not every change to ratings causes a re-render
+  //      for changes like "is expired", handle that in the LitElement for that rating
+  //      for other changes to existing ratings, emit an event from here. let the ratings listen
   @property({ type: Array }) userRatings: Rating[] = [];
   @property({ type: Object }) totalStake = BigInt(0);
   @property({ type: Boolean }) loading = true;
-
-  private blockchainService = BlockchainService.getInstance();
+  @property({ type: Object }) blockchainService: BlockchainService =
+    BlockchainService.getInstance();
 
   static styles = css`
     :host {
@@ -382,9 +383,8 @@ export class UserRatings extends LitElement {
   `;
 
   render() {
-    if (this.loading) {
+    if (this.loading)
       return html` <div class="loading">Loading your ratings data...</div> `;
-    }
 
     return html`
       <section class="user-ratings">
@@ -462,16 +462,16 @@ export class UserRatings extends LitElement {
 
     try {
       // Get the user's address
-      const address = this.blockchainService.address;
-      if (!address) {
+      const rater = this.blockchainService.address;
+      if (!rater) {
         this.loading = false;
         return;
       }
 
       // Fetch real data from the blockchain
-      this.userRatings = this.blockchainService.cache.getRatingsForRater(
-        address as Address,
-      );
+      this.userRatings = await this.blockchainService.getRatings({
+        rater,
+      });
 
       // Calculate total stake
       this.totalStake = this.userRatings.reduce(

@@ -1,43 +1,54 @@
-import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import './header-nav';
-import './dashboard';
-import './user-ratings';
-import './rating-form';
-import './rating-search';
-import type { Rating } from '../types/rating.types';
+import { LitElement, html, css } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import "./header-nav.js";
+import "./dashboard.js";
+import "./user-ratings.js";
+import "./rating-form.js";
+import "./rating-search.js";
+import {
+  BlockchainService,
+  type Rating,
+} from "../services/blockchain.service.js";
 
-@customElement('chain-rater')
+@customElement("chain-rater")
 export class ChainRater extends LitElement {
-  @property({ type: String }) activeTab = 'dashboard';
+  @property({ type: String }) activeTab = "dashboard";
   @property({ type: Boolean }) isConnected = false;
-  @property({ type: String }) account = '';
-  
+  @property({ type: String }) account = "";
+
+  @state() private blockchainService!: BlockchainService;
   @state() private ratingToEdit: Rating | null = null;
-  @state() private prefilledURI = '';
-  
+  @state() private prefilledURI = "";
+
   static styles = css`
     :host {
       display: block;
       min-height: 100vh;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
       background-color: #f5f5f5;
       color: #333;
     }
-    
+
     main {
       padding: 2rem 1rem;
     }
-    
+
     .container {
       max-width: 1200px;
       margin: 0 auto;
     }
   `;
-  
+
+  firstUpdate() {
+    this.blockchainService = BlockchainService.getInstance();
+  }
+
   render() {
     return html`
-      <header-nav 
+      <header-nav
         .activeTab=${this.activeTab}
         .isConnected=${this.isConnected}
         .accountAddress=${this.account}
@@ -45,31 +56,31 @@ export class ChainRater extends LitElement {
         @wallet-connected=${this.handleWalletConnected}
         @wallet-disconnected=${this.handleWalletDisconnected}
       ></header-nav>
-      
+
       <main>
-        <div class="container">
-          ${this.renderActiveTab()}
-        </div>
+        <div class="container">${this.renderActiveTab()}</div>
       </main>
     `;
   }
-  
+
   renderActiveTab() {
     switch (this.activeTab) {
-      case 'dashboard':
-        return html`<app-dashboard @view-uri=${this.handleViewURI}></app-dashboard>`;
-        
-      case 'myratings':
+      case "dashboard":
+        return html`<app-dashboard
+          @view-uri=${this.handleViewURI}
+        ></app-dashboard>`;
+
+      case "myratings":
         return html`
-          <user-ratings 
+          <user-ratings
             @edit-rating=${this.handleEditRating}
             @rating-removed=${this.handleRatingRemoved}
           ></user-ratings>
         `;
-        
-      case 'rate':
+
+      case "rate":
         return html`
-          <rating-form 
+          <rating-form
             .isEditing=${!!this.ratingToEdit}
             .existingRating=${this.ratingToEdit}
             .uriInput=${this.prefilledURI}
@@ -77,86 +88,86 @@ export class ChainRater extends LitElement {
             @edit-cancelled=${this.handleEditCancelled}
           ></rating-form>
         `;
-        
-      case 'search':
+
+      case "search":
         return html`
-          <rating-search 
+          <rating-search
             @rate-item=${this.handleRateItem}
             @rating-cleaned=${this.handleRatingCleaned}
           ></rating-search>
         `;
-        
+
       default:
         return html`<div>Unknown tab</div>`;
     }
   }
-  
+
   handleTabChange(e: CustomEvent) {
     this.activeTab = e.detail.tab;
-    
+
     // Reset editing state when switching away from rate tab
-    if (this.activeTab !== 'rate') {
+    if (this.activeTab !== "rate") {
       this.ratingToEdit = null;
-      this.prefilledURI = '';
+      this.prefilledURI = "";
     }
   }
-  
+
   handleWalletConnected(e: CustomEvent) {
     this.isConnected = true;
     this.account = e.detail.account;
   }
-  
+
   handleWalletDisconnected() {
     this.isConnected = false;
-    this.account = '';
-    
+    this.account = "";
+
     // If on my ratings tab, switch to dashboard since it requires connection
-    if (this.activeTab === 'myratings') {
-      this.activeTab = 'dashboard';
+    if (this.activeTab === "myratings") {
+      this.activeTab = "dashboard";
     }
   }
-  
+
   handleEditRating(e: CustomEvent) {
     this.ratingToEdit = e.detail.rating;
-    this.activeTab = 'rate';
+    this.activeTab = "rate";
   }
-  
-  handleRatingRemoved(e: CustomEvent) {
+
+  handleRatingRemoved(_: CustomEvent) {
     // Refresh user ratings component
     this.requestUpdate();
   }
-  
-  handleRatingSubmitted(e: CustomEvent) {
+
+  handleRatingSubmitted(_: CustomEvent) {
     // If we were editing, clear the edit state
     this.ratingToEdit = null;
-    this.prefilledURI = '';
-    
+    this.prefilledURI = "";
+
     // Navigate to my ratings after submission
     if (this.isConnected) {
-      this.activeTab = 'myratings';
-      
+      this.activeTab = "myratings";
+
       // Refresh user ratings component
       this.requestUpdate();
     }
   }
-  
+
   handleEditCancelled() {
     this.ratingToEdit = null;
-    this.prefilledURI = '';
-    this.activeTab = 'myratings';
+    this.prefilledURI = "";
+    this.activeTab = "myratings";
   }
-  
+
   handleViewURI(e: CustomEvent) {
-    this.prefilledURI = e.detail.uri || '';
-    this.activeTab = 'rate';
+    this.prefilledURI = e.detail.uri || "";
+    this.activeTab = "rate";
   }
-  
+
   handleRateItem(e: CustomEvent) {
-    this.prefilledURI = e.detail.uri || '';
-    this.activeTab = 'rate';
+    this.prefilledURI = e.detail.uri || "";
+    this.activeTab = "rate";
   }
-  
-  handleRatingCleaned(e: CustomEvent) {
+
+  handleRatingCleaned(_: CustomEvent) {
     // Refresh search results
     this.requestUpdate();
   }
