@@ -4,7 +4,7 @@ import {
   BlockchainService,
   type ExistingRating,
 } from "../services/blockchain.service.js";
-import { formatETH } from "../utils/blockchain.utils.js";
+import { formatETH, shortenAddress } from "../utils/blockchain.utils.js";
 
 interface StakedURIItem {
   uriHash: string;
@@ -169,24 +169,22 @@ export class Dashboard extends LitElement {
       return html`<p class="empty-list">No data available</p>`;
     }
 
+    const elements = items.map((item) => {
+      const uri = this.blockchainService.URIFromHash(item.uriHash);
+      const label = uri ?? shortenAddress(item.uriHash);
+      const value = this.formatValue(item, valueType);
+      return html`
+        <li>
+          <a href="#" @click=${() => this.viewItem(uri ?? "", item.uriHash)}>
+            ${label}
+          </a>
+          <span class="item-value"> ${value} </span>
+        </li>
+      `;
+    });
     return html`
       <ul>
-        ${items.map(
-          (item) => html`
-            <li>
-              <a
-                href="#"
-                @click=${() =>
-                  this.viewItem(item.decodedURI || "", item.uriHash)}
-              >
-                ${item.decodedURI || item.uriHash.substring(0, 10) + "..."}
-              </a>
-              <span class="item-value">
-                ${this.formatValue(item, valueType)}
-              </span>
-            </li>
-          `,
-        )}
+        ${elements}
       </ul>
     `;
   }
@@ -228,6 +226,9 @@ export class Dashboard extends LitElement {
 
     if (!this.blockchainService.isConnected())
       await this.blockchainService.connect();
+
+    // TODO there are no ratings here because this happens before the logs are processed.
+    //      the solution is to listen for updates and re-render
 
     const allRatings = (await this.blockchainService.getRatings({
       deleted: false,

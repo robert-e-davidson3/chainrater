@@ -77,6 +77,10 @@ export class BlockchainService {
     return this.cache.getRatings(filter);
   }
 
+  URIFromHash(uriHash: string): string | undefined {
+    return this.cache.getHashForURI(uriHash);
+  }
+
   setChain(chainId: number): void {
     this.cache.clear();
 
@@ -192,7 +196,7 @@ export class BlockchainService {
         if (!this.isConnected()) return;
         for (const log of logs) {
           const { uriHash, uri } = (log as any).args as Log.UriRevealed;
-          this.cache.setUriHash(uri, uriHash);
+          this.cache.setURIHash(uri, uriHash);
         }
       },
     );
@@ -284,7 +288,7 @@ export class BlockchainService {
       if (!this.isConnected()) return;
       for (const log of logs) {
         const { uriHash, uri } = (log as any).args as Log.UriRevealed;
-        this.cache.setUriHash(uri, uriHash);
+        this.cache.setURIHash(uri, uriHash);
       }
     };
 
@@ -414,148 +418,6 @@ export class BlockchainService {
       deleted: false,
     };
   }
-
-  // async getUserRatings(rater: Address): Promise<Rating[]> {
-  //   if (!this.publicClient || !this.chain) throw new Error("Not connected");
-
-  //   const contract = this.ratingsContract;
-
-  //   const ratingSubmittedLogs = await this.publicClient?.getContractEvents({
-  //     abi: contract.abi,
-  //     eventName: "RatingSubmitted",
-  //     address: contract.address,
-  //     fromBlock: "earliest",
-  //     toBlock: "latest",
-  //     strict: true,
-  //     args: {
-  //       rater,
-  //     },
-  //   });
-
-  //   const events: Record<string, RatingLog> = {};
-  //   for (const log of logs) {
-  //     console.log(log);
-  //     const { blockNumber, eventName } = log as any;
-  //     const add =
-  //       eventName === "RatingSubmitted" || eventName === "RatingReSubmitted";
-  //     const {
-  //       rater,
-  //       score,
-  //       stake,
-  //       uri: uriHash,
-  //     }: {
-  //       rater: Address;
-  //       score: number;
-  //       stake: bigint;
-  //       uri: string;
-  //     } = (log as any).args;
-
-  //     // We already have a newer log
-  //     const event = events[uriHash];
-  //     if (event && event.blockNumber > blockNumber) continue;
-
-  //     // New or newer log
-  //     events[uriHash] = {
-  //       uriHash,
-  //       rater,
-  //       score,
-  //       stake,
-  //       blockNumber,
-  //       add,
-  //     };
-  //   }
-
-  //   const ratings: Rating[] = [];
-  //   for (const uriHash in events) {
-  //     const event = events[uriHash];
-  //     if (!event.add) continue;
-
-  //     const rating = await this.getRating(event.uriHash, event.rater);
-  //     if (!rating)
-  //       throw new Error(`Rating not found: ${rater}/${event.uriHash}`);
-
-  //     ratings.push({
-  //       uriHash,
-  //       rater: event.rater,
-  //       score: event.score,
-  //       stake: event.stake,
-  //       posted: rating.posted,
-  //       expirationTime: rating.expirationTime,
-  //       decodedURI: this.hashToURI.get(uriHash),
-  //     });
-  //   }
-  //   return ratings;
-  // }
-
-  // async getURIRatings(uri: string): Promise<Rating[]> {
-  //   if (!this.publicClient || !this.chain) throw new Error("Not connected");
-
-  //   const contractInfo = this.getContractInfo("Ratings", this.chain.id);
-  //   if (!contractInfo)
-  //     throw new Error(`Contract not deployed on network ${this.chain.id}`);
-
-  //   const uriHash = hashURI(uri);
-
-  //   try {
-  //     // Filter for RatingSubmitted events where the URI matches
-  //     const events = await this.publicClient.getContractEvents({
-  //       address: contractInfo.address,
-  //       abi: contractInfo.abi,
-  //       eventName: "RatingSubmitted",
-  //       args: {
-  //         uri: uriHash,
-  //       },
-  //       fromBlock: "earliest",
-  //       toBlock: "latest",
-  //     });
-
-  //     // Filter for RatingRemoved events to exclude removed ratings
-  //     const removedEvents = await this.publicClient.getContractEvents({
-  //       address: contractInfo.address,
-  //       abi: contractInfo.abi,
-  //       eventName: "RatingRemoved",
-  //       args: {
-  //         uri: uriHash,
-  //       },
-  //       fromBlock: "earliest",
-  //       toBlock: "latest",
-  //     });
-
-  //     // Create a set of removed rater addresses for this URI
-  //     const removedRaters = new Set(
-  //       removedEvents.map((event) => (event.args as any).rater as string),
-  //     );
-
-  //     // Process and transform the events into Rating objects
-  //     const ratings: Rating[] = [];
-
-  //     for (const event of events) {
-  //       const { uri, rater } = event.args as any;
-
-  //       // Skip if this rating was removed
-  //       if (removedRaters.has(rater)) continue;
-
-  //       // Get the full rating data from the contract
-  //       try {
-  //         const rating = await this.getRating(uri, rater);
-  //         if (rating) {
-  //           ratings.push(rating);
-  //         }
-  //       } catch (error) {
-  //         console.warn(
-  //           `Error fetching rating details for rater ${rater}:`,
-  //           error,
-  //         );
-  //         // Continue with next rating if one fails
-  //       }
-  //     }
-
-  //     return ratings;
-  //   } catch (error) {
-  //     console.error("Error fetching URI ratings:", error);
-  //     throw error;
-  //   }
-  // }
 }
 
 class Cache {
@@ -572,16 +434,19 @@ class Cache {
     this.ratings.clear();
   }
 
-  setUriHash(uri: string, hash?: string) {
+  setURIHash(uri: string, hash?: string) {
     hash = hash ?? hashURI(uri);
+    hash = hash.toLowerCase();
     this.hashToURI.set(hash, uri);
   }
 
-  getUriHash(uri: string): string | undefined {
-    return this.hashToURI.get(hashURI(uri));
+  getHashForURI(uriHash: string): string | undefined {
+    return this.hashToURI.get(uriHash);
   }
 
   setRating(rating: Rating) {
+    rating.uriHash = rating.uriHash.toLowerCase();
+    rating.rater = rating.rater.toLowerCase() as Address;
     if (!this.ratings.has(rating.uriHash))
       this.ratings.set(rating.uriHash, new Map());
     const raterMap = this.ratings.get(rating.uriHash) as Map<Address, Rating>;
@@ -600,8 +465,10 @@ class Cache {
 
     if (uri !== undefined && uriHash === undefined) uriHash = hashURI(uri);
 
-    let ratings: Rating[] = [];
+    if (uriHash) uriHash = uriHash.toLowerCase();
+    if (rater) rater = rater.toLowerCase() as Address;
 
+    let ratings: Rating[] = [];
     if (uriHash && rater) {
       const rating = this.ratings.get(uriHash)?.get(rater);
       if (rating) ratings.push(rating);
@@ -639,28 +506,6 @@ class Cache {
 
     return ratings;
   }
-
-  // getRating(uriOrHash: string, rater: Address): Rating | undefined {
-  //   const uriHash = uriOrHash.startsWith("0x") ? uriOrHash : hashURI(uriOrHash);
-  //   const raterMap = this.ratings.get(uriHash);
-  //   if (!raterMap) return undefined;
-  //   return raterMap.get(rater);
-  // }
-
-  // getRatingsForURI(uri: string): Rating[] {
-  //   const uriHash = hashURI(uri);
-  //   const ratings = this.ratings.get(uriHash);
-  //   return ratings ? Array.from(ratings.values()) : [];
-  // }
-
-  // getRatingsForRater(rater: Address): Rating[] {
-  //   const ratings: Rating[] = [];
-  //   this.ratings.forEach((raterMap) => {
-  //     const rating = raterMap.get(rater);
-  //     if (rating) ratings.push(rating);
-  //   });
-  //   return ratings;
-  // }
 }
 
 type GetRatingsFilter = {
