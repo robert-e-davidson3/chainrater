@@ -35,6 +35,7 @@ export class Dashboard extends LitElement {
   @property({ type: Boolean }) loading = true;
 
   private blockchainService = BlockchainService.getInstance();
+  private unsubscribeRatings: (() => void) | null = null;
 
   static styles = css`
     :host {
@@ -218,120 +219,134 @@ export class Dashboard extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    // Subscribe to rating changes
+    this.unsubscribeRatings = this.blockchainService.onRatingsChanged(() => {
+      this.loadDashboardData();
+    });
     this.loadDashboardData();
+  }
+  
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    // Clean up subscription
+    if (this.unsubscribeRatings) {
+      this.unsubscribeRatings();
+      this.unsubscribeRatings = null;
+    }
   }
 
   async loadDashboardData() {
     this.loading = true;
 
-    if (!this.blockchainService.isConnected())
-      await this.blockchainService.connect();
+    try {
+      if (!this.blockchainService.isConnected())
+        await this.blockchainService.connect();
 
-    // TODO there are no ratings here because this happens before the logs are processed.
-    //      the solution is to listen for updates and re-render
+      const allRatings = (await this.blockchainService.getRatings({
+        deleted: false,
+      })) as ExistingRating[];
 
-    const allRatings = (await this.blockchainService.getRatings({
-      deleted: false,
-    })) as ExistingRating[];
+      this.tvl = allRatings.reduce(
+        (sum, rating) => sum + rating.stake,
+        BigInt(0),
+      );
 
-    this.tvl = allRatings.reduce(
-      (sum, rating) => sum + rating.stake,
-      BigInt(0),
-    );
+      // Group ratings by URI hash
+      const ratingsByURI = new Map<string, ExistingRating[]>();
 
-    // Group ratings by URI hash
-    const ratingsByURI = new Map<string, ExistingRating[]>();
-
-    for (const rating of allRatings) {
-      if (!ratingsByURI.has(rating.uriHash)) {
-        ratingsByURI.set(rating.uriHash, []);
+      for (const rating of allRatings) {
+        if (!ratingsByURI.has(rating.uriHash)) {
+          ratingsByURI.set(rating.uriHash, []);
+        }
+        ratingsByURI.get(rating.uriHash)?.push(rating);
       }
-      ratingsByURI.get(rating.uriHash)?.push(rating);
+
+      // Process data for top lists
+      interface URIStats {
+        uriHash: string;
+        decodedURI?: string;
+        totalStake: bigint;
+        averageScore: number;
+        ratingCount: number;
+        variance: number;
+        ratings: ExistingRating[];
+      }
+
+      const uriStats: Map<string, URIStats> = new Map();
+
+      // Calculate stats for each URI
+      for (const [uriHash, ratings] of ratingsByURI.entries()) {
+        if (ratings.length === 0) continue;
+
+        const totalStake = ratings.reduce((sum, r) => sum + r.stake, BigInt(0));
+        const ratingCount = ratings.length;
+
+        // Calculate average score
+        const totalScore = ratings.reduce((sum, r) => sum + r.score, 0);
+        const averageScore = totalScore / ratingCount;
+
+        // Calculate variance
+        const squaredDiffs = ratings.reduce(
+          (sum, r) => sum + Math.pow(r.score - averageScore, 2),
+          0,
+        );
+        const variance =
+          ratingCount > 1 ? Math.sqrt(squaredDiffs / (ratingCount - 1)) : 0;
+
+        uriStats.set(uriHash, {
+          uriHash,
+          decodedURI: ratings[0].decodedURI,
+          totalStake,
+          averageScore,
+          ratingCount,
+          variance,
+          ratings,
+        });
+      }
+
+      // Sort for top staked URIs
+      this.topStakedURIs = Array.from(uriStats.values())
+        .sort((a, b) => (b.totalStake > a.totalStake ? 1 : -1))
+        .slice(0, 5)
+        .map(
+          (stats): StakedURIItem => ({
+            uriHash: stats.uriHash,
+            decodedURI: stats.decodedURI,
+            totalStake: stats.totalStake,
+          }),
+        );
+
+      // Sort for top rated URIs
+      this.topRatedURIs = Array.from(uriStats.values())
+        .filter((stats) => stats.ratingCount >= 2) // Require at least 2 ratings
+        .sort((a, b) => b.averageScore - a.averageScore)
+        .slice(0, 5)
+        .map(
+          (stats): RatedURIItem => ({
+            uriHash: stats.uriHash,
+            decodedURI: stats.decodedURI,
+            averageScore: stats.averageScore,
+            ratingCount: stats.ratingCount,
+          }),
+        );
+
+      // Sort for most controversial (highest variance)
+      this.topVarianceURIs = Array.from(uriStats.values())
+        .filter((stats) => stats.ratingCount >= 3) // Require at least 3 ratings for meaningful variance
+        .sort((a, b) => b.variance - a.variance)
+        .slice(0, 5)
+        .map(
+          (stats): VarianceURIItem => ({
+            uriHash: stats.uriHash,
+            decodedURI: stats.decodedURI,
+            variance: stats.variance,
+            ratingCount: stats.ratingCount,
+          }),
+        );
+    } catch (error) {
+      console.error("Error loading dashboard data:", error);
+    } finally {
+      this.loading = false;
     }
-
-    // Process data for top lists
-    interface URIStats {
-      uriHash: string;
-      decodedURI?: string;
-      totalStake: bigint;
-      averageScore: number;
-      ratingCount: number;
-      variance: number;
-      ratings: ExistingRating[];
-    }
-
-    const uriStats: Map<string, URIStats> = new Map();
-
-    // Calculate stats for each URI
-    for (const [uriHash, ratings] of ratingsByURI.entries()) {
-      if (ratings.length === 0) continue;
-
-      const totalStake = ratings.reduce((sum, r) => sum + r.stake, BigInt(0));
-      const ratingCount = ratings.length;
-
-      // Calculate average score
-      const totalScore = ratings.reduce((sum, r) => sum + r.score, 0);
-      const averageScore = totalScore / ratingCount;
-
-      // Calculate variance
-      const squaredDiffs = ratings.reduce(
-        (sum, r) => sum + Math.pow(r.score - averageScore, 2),
-        0,
-      );
-      const variance =
-        ratingCount > 1 ? Math.sqrt(squaredDiffs / (ratingCount - 1)) : 0;
-
-      uriStats.set(uriHash, {
-        uriHash,
-        decodedURI: ratings[0].decodedURI,
-        totalStake,
-        averageScore,
-        ratingCount,
-        variance,
-        ratings,
-      });
-    }
-
-    // Sort for top staked URIs
-    this.topStakedURIs = Array.from(uriStats.values())
-      .sort((a, b) => (b.totalStake > a.totalStake ? 1 : -1))
-      .slice(0, 5)
-      .map(
-        (stats): StakedURIItem => ({
-          uriHash: stats.uriHash,
-          decodedURI: stats.decodedURI,
-          totalStake: stats.totalStake,
-        }),
-      );
-
-    // Sort for top rated URIs
-    this.topRatedURIs = Array.from(uriStats.values())
-      .filter((stats) => stats.ratingCount >= 2) // Require at least 2 ratings
-      .sort((a, b) => b.averageScore - a.averageScore)
-      .slice(0, 5)
-      .map(
-        (stats): RatedURIItem => ({
-          uriHash: stats.uriHash,
-          decodedURI: stats.decodedURI,
-          averageScore: stats.averageScore,
-          ratingCount: stats.ratingCount,
-        }),
-      );
-
-    // Sort for most controversial (highest variance)
-    this.topVarianceURIs = Array.from(uriStats.values())
-      .filter((stats) => stats.ratingCount >= 3) // Require at least 3 ratings for meaningful variance
-      .sort((a, b) => b.variance - a.variance)
-      .slice(0, 5)
-      .map(
-        (stats): VarianceURIItem => ({
-          uriHash: stats.uriHash,
-          decodedURI: stats.decodedURI,
-          variance: stats.variance,
-          ratingCount: stats.ratingCount,
-        }),
-      );
-
-    this.loading = false;
   }
 }

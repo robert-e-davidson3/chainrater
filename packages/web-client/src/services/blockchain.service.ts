@@ -48,6 +48,7 @@ export class BlockchainService {
 
   private accountListeners: Set<() => void> = new Set();
   private chainListeners: Set<() => void> = new Set();
+  private ratingsListeners: Set<() => void> = new Set();
 
   private constructor() {
     // Setup event listeners for MetaMask etc
@@ -119,6 +120,10 @@ export class BlockchainService {
     this.chainListeners.forEach((listener) => listener());
   }
 
+  notifyRatingsListeners() {
+    this.ratingsListeners.forEach((listener) => listener());
+  }
+
   public onAccountChanged(listener: () => void): () => void {
     this.accountListeners.add(listener);
     return () => this.accountListeners.delete(listener);
@@ -127,6 +132,11 @@ export class BlockchainService {
   public onChainChanged(listener: () => void): () => void {
     this.chainListeners.add(listener);
     return () => this.chainListeners.delete(listener);
+  }
+
+  public onRatingsChanged(listener: () => void): () => void {
+    this.ratingsListeners.add(listener);
+    return () => this.ratingsListeners.delete(listener);
   }
 
   get ratingsContract() {
@@ -203,6 +213,8 @@ export class BlockchainService {
 
     const handleAdderLogs = (logs: any[]) => {
       if (!this.isConnected()) return;
+      let ratingsChanged = false;
+
       for (const log of logs) {
         const { blockNumber } = log;
         const {
@@ -224,12 +236,19 @@ export class BlockchainService {
             posted: stake,
             deleted: false,
           });
+          ratingsChanged = true;
         }
+      }
+
+      if (ratingsChanged) {
+        this.notifyRatingsListeners();
       }
     };
 
     const handleRemoverLogs = (logs: any[]) => {
       if (!this.isConnected()) return;
+      let ratingsChanged = false;
+
       for (const log of logs) {
         const { blockNumber }: { blockNumber: bigint } = log;
         const { uri: uriHash, rater } = log.args as Log.RatingRemoved;
@@ -243,7 +262,12 @@ export class BlockchainService {
             latestBlockNumber: blockNumber,
             deleted: true,
           });
+          ratingsChanged = true;
         }
+      }
+
+      if (ratingsChanged) {
+        this.notifyRatingsListeners();
       }
     };
 
@@ -514,7 +538,16 @@ namespace RatingsContract {
         toBlock: "latest",
         eventName,
       })
-      .then(handleLogs);
+      .then((logs) => {
+        handleLogs(logs);
+        // Notify ratings listeners after processing historical logs
+        if (
+          logs.length > 0 &&
+          BlockchainService.getInstance().notifyRatingsListeners
+        ) {
+          BlockchainService.getInstance().notifyRatingsListeners();
+        }
+      });
 
     return stopWatching;
   }
