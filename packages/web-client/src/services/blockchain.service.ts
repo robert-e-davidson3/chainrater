@@ -247,25 +247,25 @@ export class BlockchainService {
       }
     };
 
-    RatingsContract.handleEvent(
+    this.watchers.RatingSubmitted = RatingsContract.handleEvent(
       this.publicClient,
       "RatingSubmitted",
       {},
       handleAdderLogs,
     );
-    RatingsContract.handleEvent(
+    this.watchers.RatingReSubmitted = RatingsContract.handleEvent(
       this.publicClient,
       "RatingReSubmitted",
       {},
       handleAdderLogs,
     );
-    RatingsContract.handleEvent(
+    this.watchers.RatingRemoved = RatingsContract.handleEvent(
       this.publicClient,
       "RatingRemoved",
       {},
       handleRemoverLogs,
     );
-    RatingsContract.handleEvent(
+    this.watchers.RatingCleanedUp = RatingsContract.handleEvent(
       this.publicClient,
       "RatingCleanedUp",
       {},
@@ -273,47 +273,6 @@ export class BlockchainService {
     );
 
     return this.account;
-  }
-
-  handleURIMappings(): void {
-    if (!this.publicClient || !this.chain) throw new Error("Not connected");
-
-    const abi = deployments.contracts.Ratings.abi;
-    const address = addressOrThrow(
-      deployments.contracts.Ratings.addresses,
-      this.chain.id,
-    );
-
-    const handleLogs = (logs: any[]) => {
-      if (!this.isConnected()) return;
-      for (const log of logs) {
-        const { uriHash, uri } = (log as any).args as Log.UriRevealed;
-        this.cache.setURIHash(uri, uriHash);
-      }
-    };
-
-    // First, watch for new events
-    this.watchers.UriRevealed = this.publicClient.watchContractEvent({
-      abi,
-      address,
-      eventName: "UriRevealed",
-      strict: true,
-      onLogs: (logs) => {
-        if (!this.isConnected()) return;
-        handleLogs(logs);
-      },
-    });
-
-    // Then, get the historical events
-    this.publicClient
-      ?.getContractEvents({
-        abi,
-        address,
-        fromBlock: "earliest",
-        toBlock: "latest",
-        eventName: "UriRevealed",
-      })
-      .then(handleLogs);
   }
 
   async disconnect(): Promise<void> {
