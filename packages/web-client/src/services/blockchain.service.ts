@@ -201,8 +201,12 @@ export class BlockchainService {
       if (!this.isConnected()) return;
       for (const log of logs) {
         const { blockNumber } = log;
-        const { uriHash, rater, score, stake } =
-          log.args as Log.RatingSubmitted;
+        const {
+          uri: uriHash,
+          rater,
+          score,
+          stake,
+        } = log.args as Log.RatingSubmitted;
 
         const rating = this.cache.getRatings({ uriHash, rater })[0];
 
@@ -224,7 +228,7 @@ export class BlockchainService {
       if (!this.isConnected()) return;
       for (const log of logs) {
         const { blockNumber }: { blockNumber: bigint } = log;
-        const { uriHash, rater } = log.args as Log.RatingRemoved;
+        const { uri: uriHash, rater } = log.args as Log.RatingRemoved;
 
         const rating = this.cache.getRatings({ uriHash, rater })[0];
 
@@ -384,7 +388,7 @@ export class BlockchainService {
 
   async getRating(
     uri: string,
-    rater: string,
+    rater: Address,
   ): Promise<Omit<ExistingRating, "latestBlockNumber"> | null> {
     if (!this.publicClient || !this.chainId) throw new Error("Not connected");
 
@@ -580,6 +584,8 @@ class Cache {
   setRating(rating: Rating) {
     if (!this.ratings.has(rating.uriHash))
       this.ratings.set(rating.uriHash, new Map());
+    const raterMap = this.ratings.get(rating.uriHash) as Map<Address, Rating>;
+    raterMap.set(rating.rater, rating);
   }
 
   getRatings({
@@ -592,23 +598,26 @@ class Cache {
     if (expired !== undefined && deleted !== false)
       throw new Error("Cannot filter by both expired if deleted != false");
 
-    const filterOnURI = !!uriHash || !!uri;
+    if (uri !== undefined && uriHash === undefined) uriHash = hashURI(uri);
 
     let ratings: Rating[] = [];
 
-    if ((uriHash || uri) && rater) {
-      uriHash = uriHash ?? hashURI(uri as string);
+    if (uriHash && rater) {
       const rating = this.ratings.get(uriHash)?.get(rater);
       if (rating) ratings.push(rating);
-    }
-
-    this.ratings.forEach((raterMap, ratingUriHash) => {
-      if (filterOnURI && ratingUriHash !== uriHash) return;
-      raterMap.forEach((rating) => {
-        if (rater && rater !== rating.rater) return;
-        ratings.push(rating);
+    } else if (uriHash) {
+      const raterMap = this.ratings.get(uriHash);
+      if (raterMap) ratings = Array.from(raterMap.values());
+    } else if (rater) {
+      this.ratings.forEach((raterMap) => {
+        const rating = raterMap.get(rater);
+        if (rating) ratings.push(rating);
       });
-    });
+    } else {
+      this.ratings.forEach((raterMap) => {
+        ratings.push(...Array.from(raterMap.values()));
+      });
+    }
 
     if (deleted !== undefined)
       ratings = ratings.filter((rating) => rating.deleted === deleted);
@@ -743,14 +752,14 @@ namespace Log {
   };
   // Also works for RatingReSubmitted
   export type RatingSubmitted = {
-    uriHash: string;
+    uri: string; // actually the hash
     rater: Address;
     score: number;
     stake: bigint;
   };
   // Also works for RatingCleanedUp
   export type RatingRemoved = {
-    uriHash: string;
+    uri: string; // actually the hash
     rater: Address;
   };
 }
@@ -769,7 +778,7 @@ export interface ExistingRating {
   score: number;
   posted: bigint;
   stake: bigint;
-  rater: string;
+  rater: Address;
   // expirationTime: Date; // TODO derive at-need
   latestBlockNumber: bigint;
   deleted: false;
@@ -777,7 +786,7 @@ export interface ExistingRating {
 
 export interface DeletedRating {
   uriHash: string;
-  rater: string;
+  rater: Address;
   latestBlockNumber: bigint;
   deleted: true;
 }
@@ -791,12 +800,12 @@ export interface SearchResult {
   isExpired?: boolean;
   stake?: string;
   expirationTime?: Date;
-  rater?: string;
+  rater?: Address;
 }
 
 export interface RatingLog {
   uriHash: string;
-  rater: string;
+  rater: Address;
   score: number;
   stake: bigint;
   blockNumber: bigint;
