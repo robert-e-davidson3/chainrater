@@ -175,6 +175,23 @@ export class RatingItem extends LitElement {
     }
   `;
 
+  private updateTimerId: number | null = null;
+
+  firstUpdated() {
+    // Set up a timer to update expiration visualization
+    this.updateTimerId = window.setInterval(() => {
+      this.requestUpdate();
+    }, 60000); // Update every minute
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.updateTimerId !== null) {
+      clearInterval(this.updateTimerId);
+      this.updateTimerId = null;
+    }
+  }
+
   render() {
     return html`
       <li class="${this.getExpirationClass()}">
@@ -300,6 +317,14 @@ export class RatingsList extends LitElement {
       return html`<p class="empty-list">You haven't rated any items yet</p>`;
     }
 
+    const blockchainService = BlockchainService.getInstance();
+    const stakePerSecond = blockchainService.stakePerSecond();
+
+    if (stakePerSecond === undefined) {
+      blockchainService.stakePerSecond();
+      return html`<p class="empty-list">Loading...</p>`;
+    }
+
     return html`
       <div class="list-header">
         <div>Item</div>
@@ -309,15 +334,31 @@ export class RatingsList extends LitElement {
         <div>Actions</div>
       </div>
       <ul>
-        ${this.ratings.map(
-          (rating) => html`
+        ${this.ratings.map((rating) => {
+          const existingRating = rating as ExistingRating;
+          const uri =
+            existingRating.decodedURI ||
+            blockchainService.URIFromHash(existingRating.uriHash);
+
+          // Calculate expiration time
+          let expirationTime = new Date();
+          if (stakePerSecond && existingRating.posted && existingRating.stake) {
+            const expirationTimeInSeconds =
+              Number(existingRating.posted) +
+              Number(existingRating.stake) / Number(stakePerSecond);
+            expirationTime = new Date(expirationTimeInSeconds * 1000);
+          }
+
+          return html`
             <rating-item
-              .rating=${rating}
+              .rating=${existingRating}
+              .uri=${uri || ""}
+              .expirationTime=${expirationTime}
               @edit-rating=${(e: CustomEvent) => this.handleEditRating(e)}
               @remove-rating=${(e: CustomEvent) => this.handleRemoveRating(e)}
             ></rating-item>
-          `,
-        )}
+          `;
+        })}
       </ul>
     `;
   }
@@ -350,15 +391,13 @@ export class RatingsList extends LitElement {
  */
 @customElement("user-ratings")
 export class UserRatings extends LitElement {
-  // TODO not only get userRatings from blockchainService but also listen for events
-  //      filter events, so not every change to ratings causes a re-render
-  //      for changes like "is expired", handle that in the LitElement for that rating
-  //      for other changes to existing ratings, emit an event from here. let the ratings listen
   @property({ type: Array }) userRatings: Rating[] = [];
   @property({ type: Object }) totalStake = BigInt(0);
   @property({ type: Boolean }) loading = true;
   @property({ type: Object }) blockchainService: BlockchainService =
     BlockchainService.getInstance();
+
+  private unsubscribeRatings: (() => void) | null = null;
 
   static styles = css`
     :host {
@@ -449,13 +488,37 @@ export class UserRatings extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+
+    // Subscribe to ratings changes
+    this.unsubscribeRatings = this.blockchainService.onRatingsChanged(() => {
+      // Only reload if we're connected and have a wallet address
+      if (
+        this.blockchainService.isConnected() &&
+        this.blockchainService.address
+      ) {
+        this.loadUserRatings();
+      }
+    });
+
     this.loadUserRatings();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+
+    // Clean up subscription
+    if (this.unsubscribeRatings) {
+      this.unsubscribeRatings();
+      this.unsubscribeRatings = null;
+    }
   }
 
   async loadUserRatings() {
     this.loading = true;
 
     if (!this.blockchainService.isConnected()) {
+      this.userRatings = [];
+      this.totalStake = BigInt(0);
       this.loading = false;
       return;
     }
@@ -464,29 +527,33 @@ export class UserRatings extends LitElement {
       // Get the user's address
       const rater = this.blockchainService.address;
       if (!rater) {
+        this.userRatings = [];
+        this.totalStake = BigInt(0);
         this.loading = false;
         return;
       }
 
-      // Fetch real data from the blockchain
-      this.userRatings = await this.blockchainService.getRatings({
+      // Fetch ratings for the current user
+      const allUserRatings = await this.blockchainService.getRatings({
         rater,
       });
 
-      // Calculate total stake
-      this.totalStake = this.userRatings.reduce(
-        (total, rating) => (rating.deleted ? total : total + rating.stake),
+      // Filter out deleted ratings for display purposes
+      const activeRatings = allUserRatings.filter((rating) => !rating.deleted);
+      this.userRatings = activeRatings;
+
+      // Calculate total stake (only for active ratings)
+      this.totalStake = activeRatings.reduce(
+        (total, rating) => total + (rating as ExistingRating).stake,
         BigInt(0),
       );
-
-      this.loading = false;
     } catch (error) {
       console.error("Error loading user ratings:", error);
-      this.loading = false;
-
       // If there's an error, show an empty list
       this.userRatings = [];
       this.totalStake = BigInt(0);
+    } finally {
+      this.loading = false;
     }
   }
 }

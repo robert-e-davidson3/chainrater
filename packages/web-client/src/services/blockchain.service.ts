@@ -36,7 +36,7 @@ export class BlockchainService {
   private publicClient: PublicClient | null = null;
   private account: Address | null = null;
   private chain: Chain | null = null;
-  private readonly cache: Cache = new Cache();
+  readonly cache: Cache = new Cache();
 
   private watchers: {
     UriRevealed?: () => void;
@@ -65,7 +65,7 @@ export class BlockchainService {
         // TODO handle the change without bad state
         //      1. tell watchers to stop
         //      2. wait for them to do so (if needed)
-        //      3. wipe cache and hashToURI
+        //      3. wipe cache (but hashToUri could be kept)
         this.setChain(chainId);
         this.notifyChainListeners();
       });
@@ -74,7 +74,6 @@ export class BlockchainService {
 
   async getRatings(filter: GetRatingsFilter): Promise<Rating[]> {
     if (!this.isConnected() || !this.chain) throw new Error("Not connected");
-    if (filter.expired !== undefined) await this.stakePerSecond();
     return this.cache.getRatings(filter);
   }
 
@@ -193,6 +192,8 @@ export class BlockchainService {
       .then((chainIdHex) => parseInt(chainIdHex as string, 16));
 
     this.setChain(chainId);
+
+    await this.initConstants();
 
     await Promise.all([this.minStake(), this.stakePerSecond()]);
 
@@ -317,24 +318,29 @@ export class BlockchainService {
     return this.chain?.id ?? null;
   }
 
-  async stakePerSecond(): Promise<bigint> {
+  async initConstants() {
     if (!this.publicClient || !this.chainId) throw new Error("Not connected");
-
-    if (this.cache?.stakePerSecond) return this.cache.stakePerSecond;
 
     const contract = this.ratingsContract;
 
-    return contract.read.STAKE_PER_SECOND([]) as unknown as bigint;
+    const [minStake, stakePerSecond] = (await Promise.all([
+      contract.read.MIN_STAKE([]),
+      contract.read.STAKE_PER_SECOND([]),
+    ])) as unknown as [bigint, bigint];
+
+    this.cache.minStake = minStake;
+    this.cache.stakePerSecond = stakePerSecond;
   }
 
-  async minStake(): Promise<bigint> {
-    if (!this.publicClient || !this.chainId) throw new Error("Not connected");
+  stakePerSecond(): bigint {
+    if (this.cache.stakePerSecond === undefined)
+      throw Error("stakePerSecond not set");
+    return this.cache.stakePerSecond;
+  }
 
-    if (this.cache?.minStake) return this.cache.minStake;
-
-    const contract = this.ratingsContract;
-
-    return contract.read.MIN_STAKE([]) as unknown as bigint;
+  minStake(): bigint {
+    if (this.cache.minStake === undefined) throw Error("minStake not set");
+    return this.cache.minStake;
   }
 
   async submitRating(uri: string, score: number, stake: bigint) {
@@ -388,7 +394,7 @@ export class BlockchainService {
       rater,
     ])) as unknown as RatingStruct;
 
-    const stakePerSecond = await this.stakePerSecond();
+    const stakePerSecond = this.stakePerSecond();
     const stakeInWei = stake * stakePerSecond;
 
     return {
