@@ -180,7 +180,7 @@ contract RatingTest is Test {
         uint256 balanceBefore = address(this).balance;
 
         // Remove the rating
-        ratings.removeRating(testUri);
+        ratings.removeRating(testUri, address(this));
 
         // Check balance - should have received refund
         uint256 expectedRefund = stake;
@@ -205,7 +205,7 @@ contract RatingTest is Test {
                 address(this)
             )
         );
-        ratings.removeRating(testUri);
+        ratings.removeRating(testUri, address(this));
     }
 
     // Test cleanup of expired rating
@@ -225,7 +225,7 @@ contract RatingTest is Test {
         uint256 balanceBeforeUser1 = user1.balance;
 
         // Cleanup the expired rating
-        ratings.cleanupRating(testUri, user1);
+        ratings.removeRating(testUri, user1);
 
         // Check the refund went to the original rater (user1)
         uint256 expectedRefund = stake;
@@ -256,7 +256,7 @@ contract RatingTest is Test {
                 stake / ratings.STAKE_PER_SECOND()
             )
         );
-        ratings.cleanupRating(testUri, user1);
+        ratings.removeRating(testUri, user1);
     }
 
     // Test cleanup with invalid rater
@@ -264,7 +264,7 @@ contract RatingTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(Ratings.InvalidRater.selector, address(0))
         );
-        ratings.cleanupRating(testUri, address(0));
+        ratings.removeRating(testUri, address(0));
     }
 
     // Alternative approach to test events
@@ -338,13 +338,13 @@ contract RatingTest is Test {
                 stake / ratings.STAKE_PER_SECOND()
             )
         );
-        ratings.cleanupRating(testUri, user1);
+        ratings.removeRating(testUri, user1);
 
         // Fast forward one more second to make it expire
         vm.warp(block.timestamp + 1);
 
         // Now the cleanup should succeed
-        ratings.cleanupRating(testUri, user1);
+        ratings.removeRating(testUri, user1);
     }
 
     // Test multiple users rating the same URI

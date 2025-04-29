@@ -30,24 +30,6 @@ export default {
         },
         {
           "type": "function",
-          "name": "cleanupRating",
-          "inputs": [
-            {
-              "name": "uri",
-              "type": "string",
-              "internalType": "string"
-            },
-            {
-              "name": "rater",
-              "type": "address",
-              "internalType": "address"
-            }
-          ],
-          "outputs": [],
-          "stateMutability": "nonpayable"
-        },
-        {
-          "type": "function",
           "name": "getRating",
           "inputs": [
             {
@@ -170,6 +152,11 @@ export default {
               "name": "uri",
               "type": "string",
               "internalType": "string"
+            },
+            {
+              "name": "rater",
+              "type": "address",
+              "internalType": "address"
             }
           ],
           "outputs": [],
