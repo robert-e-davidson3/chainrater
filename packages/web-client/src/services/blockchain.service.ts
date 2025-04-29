@@ -40,10 +40,6 @@ export class BlockchainService extends EventEmitter {
     window.ethereum.on("chainChanged", (chainIdHex: string) => {
       const chainId = parseInt(chainIdHex, 16);
       this.reconnect(chainId);
-      // TODO handle the change without bad state
-      //      1. tell watchers to stop
-      //      2. wait for them to do so (if needed)
-      //      3. wipe cache (but hashToUri could be kept)
     });
   }
 
@@ -135,14 +131,6 @@ export class BlockchainService extends EventEmitter {
     return chainId;
   }
 }
-
-type GetRatingsFilter = {
-  uriHash?: string;
-  uri?: string;
-  rater?: Address;
-  expired?: boolean;
-  deleted?: boolean;
-};
 
 // Smart contract wrappers.
 // Each designed to mimic the on-chain state of the contract,
@@ -261,7 +249,13 @@ export namespace Contract {
         rater,
         expired,
         deleted,
-      }: GetRatingsFilter): Rating | null | Rating[] {
+      }: {
+        uriHash?: string;
+        uri?: string;
+        rater?: Address;
+        expired?: boolean;
+        deleted?: boolean;
+      }): Rating | null | Rating[] {
         if (expired !== undefined && deleted !== false)
           throw new Error("Cannot filter by expired if deleted != false");
 
@@ -758,10 +752,3 @@ export class AlreadyInitializedError extends Error {
     this.name = "AlreadyInitializedError";
   }
 }
-
-// type  RequiredFields<T, K extends keyof T> = Required<Pick<T, K>> & Omit<T, K>;
-// type WithRequiredFieldValues<T, V extends Partial<Record<keyof T, any>>> = Omit<
-//   T,
-//   keyof V
-// > &
-//   V;
