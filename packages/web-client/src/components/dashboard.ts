@@ -225,13 +225,10 @@ export class Dashboard extends LitElement {
       const ratings = this.blockchainService.ratings.getRatings({
         deleted: false,
       });
-      const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
 
       console.log(ratings);
 
-      this.tvl =
-        stakePerSecond *
-        ratings.reduce((sum, rating) => sum + rating.stake, 0n);
+      this.tvl = ratings.reduce((sum, rating) => sum + rating.stake, 0n);
 
       // Group ratings by URI hash
       const ratingsByURI = new Map<string, ExistingRating[]>();

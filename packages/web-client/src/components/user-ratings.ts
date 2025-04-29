@@ -359,7 +359,7 @@ export class RatingsList extends LitElement {
       const { uriHash, stake, posted } = rating;
       const uri = this.blockchainService.ratings.getUriFromHash(uriHash);
       const expirationTime = new Date(
-        1000 * (Number(posted) + Number(stake) / Number(stakePerSecond)),
+        Number(1000n * (posted + stake / stakePerSecond)),
       );
       return html`
         <rating-item
@@ -570,11 +570,11 @@ export class UserRatings extends LitElement {
         rater: this.account as Address,
         deleted: false,
       });
-      const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
 
-      this.totalStake =
-        stakePerSecond *
-        ratings.reduce((total, rating) => total + rating.stake, 0n);
+      this.totalStake = ratings.reduce(
+        (total, rating) => total + rating.stake,
+        0n,
+      );
     } catch (error) {
       this.clearUserRatings();
       throw new Error(`Failed to load user ratings: ${error}`);

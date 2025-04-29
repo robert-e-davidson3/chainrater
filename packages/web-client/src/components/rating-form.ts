@@ -347,8 +347,7 @@ export class RatingForm extends LitElement {
     this.errorMessage = "";
 
     try {
-      const stakeWei = parseEther(this.stakeInput);
-      const stake = stakeWei / this.blockchainService.ratings.stakePerSecond;
+      const stake = parseEther(this.stakeInput);
 
       await this.blockchainService.ratings.submitRating(
         this.uriInput,

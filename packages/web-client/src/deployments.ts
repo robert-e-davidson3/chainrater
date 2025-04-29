@@ -61,8 +61,8 @@ export default {
                 },
                 {
                   "name": "stake",
-                  "type": "uint64",
-                  "internalType": "uint64"
+                  "type": "uint128",
+                  "internalType": "uint128"
                 }
               ]
             }
@@ -102,8 +102,8 @@ export default {
                 },
                 {
                   "name": "stake",
-                  "type": "uint64",
-                  "internalType": "uint64"
+                  "type": "uint128",
+                  "internalType": "uint128"
                 }
               ]
             }
@@ -138,8 +138,8 @@ export default {
             },
             {
               "name": "stake",
-              "type": "uint64",
-              "internalType": "uint64"
+              "type": "uint128",
+              "internalType": "uint128"
             }
           ],
           "stateMutability": "view"
@@ -229,9 +229,9 @@ export default {
             },
             {
               "name": "stake",
-              "type": "uint64",
+              "type": "uint128",
               "indexed": false,
-              "internalType": "uint64"
+              "internalType": "uint128"
             },
             {
               "name": "posted",
@@ -295,8 +295,8 @@ export default {
           "inputs": [
             {
               "name": "stake",
-              "type": "uint64",
-              "internalType": "uint64"
+              "type": "uint256",
+              "internalType": "uint256"
             }
           ]
         },
@@ -327,8 +327,8 @@ export default {
             },
             {
               "name": "stake",
-              "type": "uint64",
-              "internalType": "uint64"
+              "type": "uint128",
+              "internalType": "uint128"
             }
           ]
         }

@@ -6,7 +6,7 @@ contract Ratings {
         bytes32 indexed uri,
         address indexed rater,
         uint8 score,
-        uint64 stake,
+        uint128 stake,
         uint64 posted,
         bool resubmit
     );
@@ -21,17 +21,16 @@ contract Ratings {
 
     error InvalidScore(uint8 rating);
 
-    error InvalidStake(uint64 stake);
+    error InvalidStake(uint256 stake);
 
-    error RatingIsStillValid(uint64 posted, uint64 stake);
+    error RatingIsStillValid(uint64 posted, uint128 stake);
 
     error InvalidRater(address rater);
 
     error NoSuchRating(bytes32 uriHash, address rater);
 
     // STAKE_PER_SECOND is how many wei are needed for a second of duration
-    // Note that Rating.stake == 16 wei == 1 second
-    uint64 public constant STAKE_PER_SECOND = 16; // 16 wei
+    uint64 public constant STAKE_PER_SECOND = 16; // wei
     // MIN_STAKE is the minimum wei to send when submitting a rating
     uint64 public constant MIN_STAKE = STAKE_PER_SECOND * 1 weeks;
 
@@ -45,7 +44,7 @@ contract Ratings {
     struct Rating {
         uint8 score;
         uint64 posted;
-        uint64 stake; // denominated in STAKE_PER_SECOND wei
+        uint128 stake;
     }
 
     // Add a new rating.
@@ -55,16 +54,14 @@ contract Ratings {
             revert InvalidScore(score);
         }
 
-        uint64 stake = uint64(msg.value);
-
-        if (!validStake(stake)) {
-            revert InvalidStake(stake);
+        if (!validStake(msg.value)) {
+            revert InvalidStake(msg.value);
         }
 
         // Compute the hash of the URI string
         bytes32 uriHash = keccak256(bytes(uri));
 
-        uint64 rebate = ratings[uriHash][msg.sender].stake;
+        uint256 rebate = ratings[uriHash][msg.sender].stake;
         bool resubmit = rebate > 0;
         uint64 posted = uint64(block.timestamp);
 
@@ -79,6 +76,9 @@ contract Ratings {
             ratings[uriHash][msg.sender].stake = 0; // prevent re-entrancy
             pay(msg.sender, rebate);
         }
+
+        uint128 stake = uint128(msg.value);
+
         emit RatingSubmitted(
             uriHash,
             msg.sender,
@@ -91,7 +91,7 @@ contract Ratings {
         ratings[uriHash][msg.sender] = Rating({
             score: score,
             posted: posted,
-            stake: stake / STAKE_PER_SECOND
+            stake: stake
         });
     }
 
@@ -116,8 +116,7 @@ contract Ratings {
             revert RatingIsStillValid(rating.posted, rating.stake);
         }
 
-        uint64 stake = rating.stake;
-        uint8 score = rating.score;
+        uint256 stake = uint256(rating.stake);
         delete ratings[uriHash][rater]; // prevent re-entrancy
         emit RatingRemoved(uriHash, rater, isOwnRating);
         pay(rater, stake);
@@ -138,15 +137,15 @@ contract Ratings {
         return ratings[uriHash][rater];
     }
 
-    function pay(address recipient, uint64 stake) internal {
-        payable(recipient).transfer(uint256(stake) * STAKE_PER_SECOND);
+    function pay(address recipient, uint256 stake) internal {
+        payable(recipient).transfer(stake);
     }
 
     function validScore(uint8 score) internal pure returns (bool) {
         return score >= 1 && score <= 5;
     }
 
-    function validStake(uint64 stake) internal pure returns (bool) {
+    function validStake(uint256 stake) internal pure returns (bool) {
         return stake >= MIN_STAKE && stake % STAKE_PER_SECOND == 0;
     }
 }

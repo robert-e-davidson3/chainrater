@@ -340,11 +340,10 @@ export namespace Contract {
         if (!this.account) throw new MissingAccountError();
 
         const uriHash = hashURI(uri);
-        const stakeInWei = stake * this.stakePerSecond;
 
         const args = [uriHash, score] as const;
         const opts = {
-          value: stakeInWei,
+          value: stake,
           account: this.account,
           chain: this.clients.wallet.chain,
         } as const;
