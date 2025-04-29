@@ -1,5 +1,5 @@
 import { LitElement, html, css } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import {
   BlockchainService,
@@ -12,6 +12,7 @@ import {
 } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { ListenerManager } from "../utils/listener.utils.js";
+import "./stake-time-display.js";
 
 //
 // Note that the dashboard does NOT update in real time. Reload to get the latest.
@@ -173,13 +174,28 @@ export class Dashboard extends LitElement {
     const elements = items.map((item) => {
       const uri = this.blockchainService.ratings.getUriFromHash(item.uriHash);
       const label = uri ?? shortenAddress(item.uriHash);
-      const value = this.formatValue(item, valueType);
+
+      let valueDisplay;
+      if (valueType === "stake") {
+        const stakedItem = item as StakedURIItem;
+        valueDisplay = html`
+          <stake-time-display
+            .stake=${stakedItem.totalStake}
+            .aggregateMode=${true}
+            .showDetails=${true}
+          ></stake-time-display>
+        `;
+      } else {
+        const value = this.formatValue(item, valueType);
+        valueDisplay = html`<span class="item-value">${value}</span>`;
+      }
+
       return html`
         <li>
           <a href="#" @click=${() => this.viewItem(uri ?? "", item.uriHash)}>
             ${label}
           </a>
-          <span class="item-value"> ${value} </span>
+          ${valueDisplay}
         </li>
       `;
     });
@@ -193,10 +209,14 @@ export class Dashboard extends LitElement {
   formatValue(
     item: StakedURIItem | RatedURIItem | VarianceURIItem,
     valueType: "stake" | "score" | "variance",
-  ): string {
+  ): string | HTMLElement {
     switch (valueType) {
-      case "stake":
-        return formatETH((item as StakedURIItem).totalStake);
+      case "stake": {
+        const stakedItem = item as StakedURIItem;
+        // For now, return the formatted ETH value as a string
+        // We'll render the stake-time-display component separately
+        return formatETH(stakedItem.totalStake);
+      }
       case "score":
         return `${(item as RatedURIItem).averageScore.toFixed(1)} ★`;
       case "variance":

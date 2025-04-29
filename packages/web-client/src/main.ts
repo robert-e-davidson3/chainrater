@@ -20,5 +20,6 @@ declare global {
     'user-ratings': HTMLElement;
     'rating-form': HTMLElement;
     'rating-search': HTMLElement;
+    'stake-time-display': HTMLElement;
   }
 }
