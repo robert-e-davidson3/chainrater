@@ -21,5 +21,6 @@ declare global {
     'rating-form': HTMLElement;
     'rating-search': HTMLElement;
     'stake-time-display': HTMLElement;
+    'time-input': HTMLElement;
   }
 }

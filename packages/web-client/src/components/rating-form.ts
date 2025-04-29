@@ -1,20 +1,21 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
-import { parseEther } from "viem";
 import {
   type ExistingRating,
   BlockchainService,
 } from "../services/blockchain.service.js";
-import { formatETH, MissingContextError } from "../utils/blockchain.utils.js";
+import { MissingContextError } from "../utils/blockchain.utils.js";
 import { URIValidator } from "../utils/uri.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
+import { MIN_DURATION_SECONDS } from "../utils/time-constants.js";
+import "./time-input.js";
 
 @customElement("rating-form")
 export class RatingForm extends LitElement {
   @property({ type: String }) uriInput = ""; // URI, not its hash
   @property({ type: Number }) scoreInput = 3;
-  @property({ type: String }) stakeInput = "";
+  @property({ type: Number }) durationSeconds = MIN_DURATION_SECONDS; // Duration in seconds
   @property({ type: Object }) minStake = BigInt(0);
   @property({ type: Boolean }) isEditing = false;
   @property({ type: Object }) existingRating: ExistingRating | null = null;
@@ -233,19 +234,16 @@ export class RatingForm extends LitElement {
         </div>
 
         <div class="form-group">
-          <label for="stake">Stake Amount (ETH)</label>
-          <input
-            id="stake"
-            type="number"
-            min="0"
-            step="0.001"
-            .value=${this.stakeInput}
-            @input=${(e: any) => (this.stakeInput = e.target.value)}
-          />
+          <label for="duration">Duration</label>
+          <time-input
+            id="duration"
+            .value=${this.durationSeconds}
+            .disabled=${this.isSubmitting}
+            @time-change=${this.handleTimeChange}
+          ></time-input>
           <div class="helper-text">
-            Minimum stake:
-            ${formatETH(this.minStake || BigInt(16000000 * 604800))}. Larger
-            stakes last longer and have more weight.
+            Minimum duration is 1 week. Longer durations require more ETH 
+            and give your rating more weight.
           </div>
         </div>
 
@@ -293,6 +291,10 @@ export class RatingForm extends LitElement {
     this.showURIExamples = !this.showURIExamples;
   }
 
+  handleTimeChange(e: CustomEvent) {
+    this.durationSeconds = e.detail.seconds;
+  }
+
   validateForm(): boolean {
     // Check if connected
     if (!this.blockchainService.ready) {
@@ -318,20 +320,18 @@ export class RatingForm extends LitElement {
       return false;
     }
 
-    // Validate stake
-    if (
-      !this.stakeInput ||
-      isNaN(Number(this.stakeInput)) ||
-      Number(this.stakeInput) <= 0
-    ) {
-      this.errorMessage = "Stake amount is required and must be greater than 0";
+    // Validate duration
+    if (this.durationSeconds < MIN_DURATION_SECONDS) {
+      this.errorMessage = "Duration must be at least 1 week";
       return false;
     }
 
-    const stakeWei = parseEther(this.stakeInput);
+    // Calculate stake from duration
+    const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
+    const stake = BigInt(this.durationSeconds) * stakePerSecond;
 
-    if (stakeWei < this.minStake) {
-      this.errorMessage = `Stake must be at least ${formatETH(this.minStake)}`;
+    if (stake < this.minStake) {
+      this.errorMessage = "Stake is too low for the selected duration";
       return false;
     }
 
@@ -347,7 +347,9 @@ export class RatingForm extends LitElement {
     this.errorMessage = "";
 
     try {
-      const stake = parseEther(this.stakeInput);
+      // Calculate stake from duration
+      const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
+      const stake = BigInt(this.durationSeconds) * stakePerSecond;
 
       await this.blockchainService.ratings.submitRating(
         this.uriInput,
@@ -367,6 +369,7 @@ export class RatingForm extends LitElement {
             uri: this.uriInput,
             score: this.scoreInput,
             stake,
+            durationSeconds: this.durationSeconds,
           },
           bubbles: true,
           composed: true,
@@ -394,7 +397,7 @@ export class RatingForm extends LitElement {
   resetForm() {
     this.uriInput = "";
     this.scoreInput = 3;
-    this.stakeInput = "";
+    this.durationSeconds = MIN_DURATION_SECONDS;
     this.errorMessage = "";
     this.isEditing = false;
     this.existingRating = null;

@@ -7,13 +7,13 @@ import {
 } from "../services/blockchain.service.js";
 import { formatETH, formatTimeRemaining } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
-
-// Time constants
-const SECONDS_IN_MINUTE = 60;
-const SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60;
-const SECONDS_IN_DAY = SECONDS_IN_HOUR * 24;
-const SECONDS_IN_WEEK = SECONDS_IN_DAY * 7;
-const SECONDS_IN_YEAR = SECONDS_IN_DAY * 365;
+import {
+  SECONDS_IN_MINUTE,
+  SECONDS_IN_HOUR,
+  SECONDS_IN_DAY,
+  SECONDS_IN_WEEK,
+  SECONDS_IN_YEAR
+} from "../utils/time-constants.js";
 
 @customElement("stake-time-display")
 export class StakeTimeDisplay extends LitElement {
