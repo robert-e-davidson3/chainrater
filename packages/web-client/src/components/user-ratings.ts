@@ -3,9 +3,12 @@ import { customElement, property } from "lit/decorators.js";
 import {
   type Rating,
   BlockchainService,
+  Contract,
   ExistingRating,
 } from "../services/blockchain.service.js";
 import { formatETH, formatTimeRemaining } from "../utils/blockchain.utils.js";
+import { Address } from "viem";
+import { ListenerManager } from "../utils/listener.utils.js";
 
 /**
  * Rating stars component
@@ -257,7 +260,7 @@ export class RatingItem extends LitElement {
  */
 @customElement("ratings-list")
 export class RatingsList extends LitElement {
-  @property({ type: Array }) ratings: Rating[] = [];
+  @property({ type: Array }) ratings: ExistingRating[] = [];
 
   static styles = css`
     :host {
@@ -318,12 +321,26 @@ export class RatingsList extends LitElement {
     }
 
     const blockchainService = BlockchainService.getInstance();
-    const stakePerSecond = blockchainService.stakePerSecond();
-
-    if (stakePerSecond === undefined) {
-      blockchainService.stakePerSecond();
+    if (!blockchainService.ready)
       return html`<p class="empty-list">Loading...</p>`;
-    }
+    const stakePerSecond = blockchainService.ratings.stakePerSecond;
+
+    const items = this.ratings.map((rating) => {
+      const { uriHash, stake, posted } = rating;
+      const uri = blockchainService.ratings.getUriFromHash(uriHash);
+      const expirationTime = new Date(
+        1000 * (Number(posted) + Number(stake) / Number(stakePerSecond)),
+      );
+      return html`
+        <rating-item
+          .rating=${rating}
+          .uri=${uri}
+          .expirationTime=${expirationTime}
+          @edit-rating=${(e: CustomEvent) => this.handleEditRating(e)}
+          @remove-rating=${(e: CustomEvent) => this.handleRemoveRating(e)}
+        ></rating-item>
+      `;
+    });
 
     return html`
       <div class="list-header">
@@ -334,31 +351,7 @@ export class RatingsList extends LitElement {
         <div>Actions</div>
       </div>
       <ul>
-        ${this.ratings.map((rating) => {
-          const existingRating = rating as ExistingRating;
-          const uri =
-            existingRating.decodedURI ||
-            blockchainService.URIFromHash(existingRating.uriHash);
-
-          // Calculate expiration time
-          let expirationTime = new Date();
-          if (stakePerSecond && existingRating.posted && existingRating.stake) {
-            const expirationTimeInSeconds =
-              Number(existingRating.posted) +
-              Number(existingRating.stake) / Number(stakePerSecond);
-            expirationTime = new Date(expirationTimeInSeconds * 1000);
-          }
-
-          return html`
-            <rating-item
-              .rating=${existingRating}
-              .uri=${uri || ""}
-              .expirationTime=${expirationTime}
-              @edit-rating=${(e: CustomEvent) => this.handleEditRating(e)}
-              @remove-rating=${(e: CustomEvent) => this.handleRemoveRating(e)}
-            ></rating-item>
-          `;
-        })}
+        ${items}
       </ul>
     `;
   }
@@ -388,16 +381,18 @@ export class RatingsList extends LitElement {
 
 /**
  * Main user ratings component
+ * Displays any user's ratings and total stake.
  */
 @customElement("user-ratings")
 export class UserRatings extends LitElement {
+  @property({ type: String }) userAddress: string = "";
   @property({ type: Array }) userRatings: Rating[] = [];
   @property({ type: Object }) totalStake = BigInt(0);
   @property({ type: Boolean }) loading = true;
   @property({ type: Object }) blockchainService: BlockchainService =
     BlockchainService.getInstance();
 
-  private unsubscribeRatings: (() => void) | null = null;
+  private listeners = new ListenerManager();
 
   static styles = css`
     :host {
@@ -423,7 +418,7 @@ export class UserRatings extends LitElement {
 
   render() {
     if (this.loading)
-      return html` <div class="loading">Loading your ratings data...</div> `;
+      return html` <div class="loading">Loading ratings data...</div> `;
 
     return html`
       <section class="user-ratings">
@@ -452,19 +447,18 @@ export class UserRatings extends LitElement {
 
   async removeRating(e: CustomEvent) {
     const { rating } = e.detail;
-
-    if (
-      !confirm(
-        `Are you sure you want to remove your rating for ${rating.decodedURI || rating.uriHash}? You will get back ${formatETH(rating.stake)}.`,
-      )
-    ) {
-      return;
-    }
-
     try {
-      await this.blockchainService.removeRating(
-        rating.decodedURI || rating.uriHash,
-      );
+      const uri = this.blockchainService.ratings.getUriFromHash(rating.uriHash);
+
+      if (
+        !confirm(
+          `Are you sure you want to remove your rating for ${rating.uri}? You will get back ${formatETH(rating.stake)}.`,
+        )
+      ) {
+        return;
+      }
+
+      await this.blockchainService.ratings.removeRating(uri);
       this.dispatchEvent(
         new CustomEvent("rating-removed", {
           detail: { rating },
@@ -489,69 +483,64 @@ export class UserRatings extends LitElement {
   connectedCallback() {
     super.connectedCallback();
 
-    // Subscribe to ratings changes
-    this.unsubscribeRatings = this.blockchainService.onRatingsChanged(() => {
-      // Only reload if we're connected and have a wallet address
-      if (
-        this.blockchainService.isConnected() &&
-        this.blockchainService.address
-      ) {
-        this.loadUserRatings();
-      }
-    });
+    this.listeners.add(this.blockchainService, "connected", () =>
+      this.loadUserRatings(),
+    );
+    this.listeners.add(this.blockchainService, "disconnected", () =>
+      this.clearUserRatings(),
+    );
+
+    this.listeners.add(
+      this.blockchainService.ratings,
+      [
+        Contract.Ratings.RatingSubmittedEventName,
+        Contract.Ratings.RatingRemovedEventName,
+      ],
+      (
+        ratings: (
+          | Contract.Ratings.RatingSubmittedEvent
+          | Contract.Ratings.RatingRemovedEvent
+        )[],
+      ) => {
+        if (
+          ratings.some(({ rater }) => {
+            return rater === this.userAddress;
+          })
+        )
+          this.loadUserRatings();
+      },
+    );
 
     this.loadUserRatings();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this.listeners.clear();
+  }
 
-    // Clean up subscription
-    if (this.unsubscribeRatings) {
-      this.unsubscribeRatings();
-      this.unsubscribeRatings = null;
-    }
+  clearUserRatings() {
+    this.userRatings = [];
+    this.totalStake = 0n;
+    this.loading = false;
   }
 
   async loadUserRatings() {
     this.loading = true;
 
-    if (!this.blockchainService.isConnected()) {
-      this.userRatings = [];
-      this.totalStake = BigInt(0);
-      this.loading = false;
-      return;
-    }
-
     try {
-      // Get the user's address
-      const rater = this.blockchainService.address;
-      if (!rater) {
-        this.userRatings = [];
-        this.totalStake = BigInt(0);
-        this.loading = false;
-        return;
-      }
-
-      // Fetch ratings for the current user
-      const allUserRatings = await this.blockchainService.getRatings({
-        rater,
+      const ratings = this.blockchainService.ratings.getRatings({
+        rater: this.userAddress as Address,
+        deleted: false,
       });
 
-      // Filter out deleted ratings for display purposes
-      const activeRatings = allUserRatings.filter((rating) => !rating.deleted);
-      this.userRatings = activeRatings;
-
-      // Calculate total stake (only for active ratings)
-      this.totalStake = activeRatings.reduce(
+      this.totalStake = ratings.reduce(
         (total, rating) => total + (rating as ExistingRating).stake,
-        BigInt(0),
+        0n,
       );
     } catch (error) {
-      console.error("Error loading user ratings:", error);
-      // If there's an error, show an empty list
-      this.userRatings = [];
-      this.totalStake = BigInt(0);
+      this.clearUserRatings();
+      throw new Error(`Failed to load user ratings: ${error}`);
     } finally {
       this.loading = false;
     }

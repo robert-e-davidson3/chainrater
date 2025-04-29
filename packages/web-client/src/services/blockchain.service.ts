@@ -9,6 +9,7 @@ import {
   type Address,
   GetContractReturnType,
   WatchContractEventOnLogsFn,
+  Hex,
 } from "viem";
 import { mainnet, sepolia, foundry } from "viem/chains";
 import { hashURI } from "../utils/blockchain.utils.js";
@@ -24,7 +25,7 @@ export class BlockchainService extends EventEmitter {
   private static instance: BlockchainService;
 
   private client: Clients | null = null;
-  private account?: Address;
+  private _account?: Address;
   private _chainId: ChainId | null = null;
 
   private contracts?: {
@@ -37,7 +38,7 @@ export class BlockchainService extends EventEmitter {
 
     // Setup event listeners for MetaMask etc
     window.ethereum.on("accountsChanged", (accounts: Address[]) => {
-      this.setAccount(accounts[0]);
+      this.account = accounts[0];
     });
 
     window.ethereum.on("chainChanged", (chainIdHex: string) => {
@@ -50,14 +51,23 @@ export class BlockchainService extends EventEmitter {
     });
   }
 
-  private setAccount(account?: Address) {
+  private _ready = false;
+  get ready(): boolean {
+    return this._ready;
+  }
+
+  private set account(account: Address | undefined) {
     if (account) console.log("Account changed:", account);
     else console.log("Account cleared");
 
-    this.account = account;
+    this._account = account;
     if (this.contracts) this.contracts.ratings.account = account;
 
     this.emit("accountChanged", account);
+  }
+
+  get account(): Address | undefined {
+    return this._account;
   }
 
   get ratings(): Contract.Ratings.Ratings {
@@ -67,6 +77,8 @@ export class BlockchainService extends EventEmitter {
 
   // Sets all state dependent on connection.
   async connect(chainId?: number) {
+    this._ready = false;
+
     const ethereum = window.ethereum;
     if (!ethereum) throw new MissingWeb3Error();
 
@@ -84,10 +96,10 @@ export class BlockchainService extends EventEmitter {
     this.client = clients;
 
     if (this.client.wallet.account) {
-      this.account = this.client.wallet.account.address;
+      this._account = this.client.wallet.account.address;
     } else {
       const addresses = await this.client.wallet.requestAddresses();
-      this.account = addresses[0];
+      this._account = addresses[0];
     }
 
     if (this.contracts) {
@@ -97,18 +109,20 @@ export class BlockchainService extends EventEmitter {
         ratings: new Contract.Ratings.Ratings(
           validChainId,
           clients,
-          this.account,
+          this._account,
         ),
       };
       await this.contracts.ratings.init();
     }
 
+    this._ready = true;
     this.emit("connected", this._chainId);
   }
 
   // Unsets all state dependent on connection.
   disconnect() {
     console.log("Disconnecting from chain");
+    this._ready = false;
     this.contracts?.ratings.clear();
     this._chainId = null;
     this.client = null;
@@ -135,10 +149,6 @@ export class BlockchainService extends EventEmitter {
       BlockchainService.instance = new BlockchainService();
     }
     return BlockchainService.instance;
-  }
-
-  isConnected(): boolean {
-    return !!this.client?.wallet;
   }
 }
 
@@ -218,11 +228,19 @@ export namespace Contract {
 
       // Specifically gets ratings that are already cached (in the Ratings.state).
       // To get a single rating directly from the blockchain, use `getRating`.
+      // Returns a single rating (or null) if `rater` and `uriHash`/`uri` are provided.
       getRatings(
-        x:
+        _:
           | RequiredFields<GetRatingsFilter, "uriHash" | "rater">
           | RequiredFields<GetRatingsFilter, "uri" | "rater">,
       ): Rating | null;
+      getRatings(
+        _: WithRequiredFieldValues<GetRatingsFilter, { deleted: false }>,
+      ): ExistingRating[];
+      getRatings(
+        _: WithRequiredFieldValues<GetRatingsFilter, { deleted: false }>,
+      ): DeletedRating[];
+      getRatings(_: GetRatingsFilter): Rating[];
       getRatings({
         uriHash,
         uri,
@@ -350,14 +368,21 @@ export namespace Contract {
         } as ExistingRating;
       }
 
+      private _ready = false;
+      get ready(): boolean {
+        return this._ready;
+      }
+
       // Get contract state and set up listeners for changes.
       async init() {
+        if (this._ready) throw new AlreadyInitializedError();
         await Promise.all([
           this.initConstants(),
           this.initUriRevealedEvent(),
           this.initRatingSubmittedEvent(),
           this.initRatingRemovedEvent(),
         ]);
+        this._ready = true;
         this.emit("initialized");
       }
 
@@ -416,7 +441,13 @@ export namespace Contract {
             const rating = this.state.ratings.get(uriHash)?.get(rater);
             if (rating && rating.latestBlockNumber >= latestBlockNumber)
               continue; // Ignore old ratings
-            changed.push(log);
+            changed.push({
+              uriHash,
+              rater,
+              score,
+              stake,
+              posted,
+            });
             this.state.ratings?.get(uriHash)?.set(rater, {
               score,
               posted,
@@ -425,7 +456,7 @@ export namespace Contract {
               deleted: false,
             });
           }
-          if (changed.length > 0) this.emit("ratingSubmitted", changed);
+          if (changed.length > 0) this.emitRatingSubmitted(changed);
         };
 
         this.watchers.add(
@@ -464,13 +495,13 @@ export namespace Contract {
             const rating = this.state.ratings.get(uriHash)?.get(rater);
             if (rating && rating.latestBlockNumber >= latestBlockNumber)
               continue; // Ignore older events
-            changed.push(log);
+            changed.push({ uriHash, rater });
             this.state.ratings?.get(uriHash)?.set(rater, {
               latestBlockNumber,
               deleted: true,
             });
           }
-          if (changed.length > 0) this.emit("ratingRemoved", changed);
+          if (changed.length > 0) this.emitRatingRemoved(changed);
         };
 
         this.watchers.add(
@@ -501,6 +532,14 @@ export namespace Contract {
         this.watchers = new Set();
         this.emit("cleared");
       }
+
+      private emitRatingSubmitted(ratings: RatingSubmittedEvent[]) {
+        this.emit(RatingSubmittedEventName, ratings);
+      }
+
+      private emitRatingRemoved(ratings: RatingRemovedEvent[]) {
+        this.emit(RatingRemovedEventName, ratings);
+      }
     }
 
     const abi = deployments.contracts.Ratings.abi;
@@ -514,6 +553,21 @@ export namespace Contract {
     type InternalRating =
       | Omit<ExistingRating, "uriHash" | "rater">
       | Omit<DeletedRating, "uriHash" | "rater">;
+
+    export const RatingSubmittedEventName = "ratingSubmitted" as const;
+    export type RatingSubmittedEvent = {
+      uriHash: Hex;
+      rater: Address;
+      score: number;
+      stake: bigint;
+      posted: bigint;
+    };
+
+    export const RatingRemovedEventName = "ratingRemoved" as const;
+    export type RatingRemovedEvent = {
+      uriHash: Hex;
+      rater: Address;
+    };
   }
 }
 
@@ -668,4 +722,16 @@ export class SimulationError extends Error {
   }
 }
 
+export class AlreadyInitializedError extends Error {
+  constructor() {
+    super("Already initialized");
+    this.name = "AlreadyInitializedError";
+  }
+}
+
 type RequiredFields<T, K extends keyof T> = Required<Pick<T, K>> & Omit<T, K>;
+type WithRequiredFieldValues<T, V extends Partial<Record<keyof T, any>>> = Omit<
+  T,
+  keyof V
+> &
+  V;
