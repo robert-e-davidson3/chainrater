@@ -98,18 +98,13 @@ export class BlockchainService extends EventEmitter {
       this._account = addresses[0];
     }
 
-    if (this.contracts) {
-      this.contracts.ratings.clear();
-    } else {
-      this.contracts = {
-        ratings: new Contract.Ratings.Ratings(
-          validChainId,
-          clients,
-          this._account,
-        ),
-      };
-      await this.contracts.ratings.init();
-    }
+    this.contracts = {
+      ratings: await Contract.Ratings.Ratings.create(
+        validChainId,
+        clients,
+        this._account,
+      ),
+    };
 
     this._ready = true;
     this.emit("connected", this._chainId);
@@ -394,6 +389,16 @@ export namespace Contract {
       private _ready = false;
       get ready(): boolean {
         return this._ready;
+      }
+
+      static async create(
+        chainId: ChainId,
+        clients: Clients,
+        account?: Address,
+      ): Promise<Ratings> {
+        const ratings = new Ratings(chainId, clients, account);
+        await ratings.init();
+        return ratings;
       }
 
       // Get contract state and set up listeners for changes.

@@ -11,6 +11,7 @@ import {
   MissingContextError,
 } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
+import { ListenerManager } from "../utils/listener.utils.js";
 
 //
 // Note that the dashboard does NOT update in real time. Reload to get the latest.
@@ -127,6 +128,9 @@ export class Dashboard extends LitElement {
   `;
 
   render() {
+    if (!this.blockchainService.ready)
+      return html`<div class="loading">Please connect wallet</div>`;
+
     if (this.loading) {
       return html` <div class="loading">Loading dashboard data...</div> `;
     }
@@ -213,9 +217,32 @@ export class Dashboard extends LitElement {
     );
   }
 
+  private listeners = new ListenerManager();
+
   connectedCallback() {
     super.connectedCallback();
-    this.loadDashboardData();
+    if (this.blockchainService.ready) this.loadDashboardData();
+
+    this.listeners.add(this.blockchainService, "connected", () =>
+      this.loadDashboardData(),
+    );
+    this.listeners.add(this.blockchainService, "disconnected", () =>
+      this.unloadDashboardData(),
+    );
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.listeners.clear();
+    this.unloadDashboardData();
+  }
+
+  unloadDashboardData() {
+    this.tvl = 0n;
+    this.topStakedURIs = [];
+    this.topRatedURIs = [];
+    this.topVarianceURIs = [];
+    this.loading = false;
   }
 
   async loadDashboardData() {
@@ -225,6 +252,7 @@ export class Dashboard extends LitElement {
       const ratings = this.blockchainService.ratings.getRatings({
         deleted: false,
       });
+      console.log(ratings);
 
       this.tvl = ratings.reduce((sum, rating) => sum + rating.stake, 0n);
 
