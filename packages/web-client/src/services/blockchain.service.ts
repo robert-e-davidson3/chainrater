@@ -339,9 +339,7 @@ export namespace Contract {
       async submitRating(uri: string, score: number, stake: bigint) {
         if (!this.account) throw new MissingAccountError();
 
-        const uriHash = hashURI(uri);
-
-        const args = [uriHash, score] as const;
+        const args = [uri, score] as const;
         const opts = {
           value: stake,
           account: this.account,
@@ -458,7 +456,8 @@ export namespace Contract {
         > = (logs) => {
           const changed = [];
           for (const log of logs) {
-            const { uri: uriHash, rater, score, stake, posted } = log.args;
+            const { uri: uriHash, score, stake, posted } = log.args;
+            const rater = log.args.rater.toLowerCase() as Address;
             const { blockNumber: latestBlockNumber } = log;
 
             if (!this.state.ratings.has(uriHash))
@@ -512,7 +511,8 @@ export namespace Contract {
         ) => {
           const changed = [];
           for (const log of logs) {
-            const { uri: uriHash, rater } = log.args;
+            const uriHash = log.args.uri;
+            const rater = log.args.rater.toLowerCase() as Address;
             const { blockNumber: latestBlockNumber } = log;
 
             if (!this.state.ratings.has(uriHash))

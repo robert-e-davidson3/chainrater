@@ -226,8 +226,6 @@ export class Dashboard extends LitElement {
         deleted: false,
       });
 
-      console.log(ratings);
-
       this.tvl = ratings.reduce((sum, rating) => sum + rating.stake, 0n);
 
       // Group ratings by URI hash

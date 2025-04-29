@@ -416,7 +416,7 @@ export class RatingsList extends LitElement {
 @customElement("user-ratings")
 export class UserRatings extends LitElement {
   @property({ type: String }) account: string = "";
-  @state() userRatings: Rating[] = [];
+  @state() userRatings: ExistingRating[] = [];
   @state() totalStake = 0n;
   @state() loading = true;
 
@@ -575,6 +575,7 @@ export class UserRatings extends LitElement {
         (total, rating) => total + rating.stake,
         0n,
       );
+      this.userRatings = ratings;
     } catch (error) {
       this.clearUserRatings();
       throw new Error(`Failed to load user ratings: ${error}`);
