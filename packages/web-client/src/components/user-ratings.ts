@@ -1,5 +1,5 @@
 import { LitElement, html, css } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, state, property } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import {
   type Rating,
@@ -44,7 +44,7 @@ export class RatingStars extends LitElement {
  */
 @customElement("total-stake-card")
 export class TotalStakeCard extends LitElement {
-  @property({ type: Object }) totalStake: bigint = BigInt(0);
+  @property({ type: BigInt }) totalStake: bigint = BigInt(0);
 
   static styles = css`
     :host {
@@ -323,6 +323,22 @@ export class RatingsList extends LitElement {
     }
   `;
 
+  private listeners = new ListenerManager();
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.listeners.add(
+      this.blockchainService,
+      ["connected", "disconnected"],
+      () => this.requestUpdate(),
+    );
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.listeners.clear();
+  }
+
   render() {
     return html`
       <h3>Your Ratings</h3>
@@ -399,10 +415,10 @@ export class RatingsList extends LitElement {
  */
 @customElement("user-ratings")
 export class UserRatings extends LitElement {
-  @property({ type: String }) userAddress: string = "";
-  @property({ type: Array }) userRatings: Rating[] = [];
-  @property({ type: Object }) totalStake = BigInt(0);
-  @property({ type: Boolean }) loading = true;
+  @property({ type: String }) account: string = "";
+  @state() userRatings: Rating[] = [];
+  @state() totalStake = 0n;
+  @state() loading = true;
 
   @consume({ context: blockchainServiceContext })
   _blockchainService?: BlockchainService;
@@ -414,6 +430,45 @@ export class UserRatings extends LitElement {
   }
 
   private listeners = new ListenerManager();
+
+  connectedCallback() {
+    super.connectedCallback();
+
+    this.listeners.add(this.blockchainService, "connected", () =>
+      this.loadUserRatings(),
+    );
+    this.listeners.add(this.blockchainService, "disconnected", () =>
+      this.clearUserRatings(),
+    );
+
+    this.listeners.add(
+      this.blockchainService.ratings,
+      [
+        Contract.Ratings.RatingSubmittedEventName,
+        Contract.Ratings.RatingRemovedEventName,
+      ],
+      (
+        ratings: (
+          | Contract.Ratings.RatingSubmittedEvent
+          | Contract.Ratings.RatingRemovedEvent
+        )[],
+      ) => {
+        if (
+          ratings.some(({ rater }) => {
+            return rater === this.account;
+          })
+        )
+          this.loadUserRatings();
+      },
+    );
+
+    this.loadUserRatings();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.listeners.clear();
+  }
 
   static styles = css`
     :host {
@@ -479,7 +534,7 @@ export class UserRatings extends LitElement {
         return;
       }
 
-      await this.blockchainService.ratings.removeRating(uri);
+      await this.blockchainService.ratings.removeRating(uri, rating.rater);
       this.dispatchEvent(
         new CustomEvent("rating-removed", {
           detail: { rating },
@@ -501,45 +556,6 @@ export class UserRatings extends LitElement {
     }
   }
 
-  connectedCallback() {
-    super.connectedCallback();
-
-    this.listeners.add(this.blockchainService, "connected", () =>
-      this.loadUserRatings(),
-    );
-    this.listeners.add(this.blockchainService, "disconnected", () =>
-      this.clearUserRatings(),
-    );
-
-    this.listeners.add(
-      this.blockchainService.ratings,
-      [
-        Contract.Ratings.RatingSubmittedEventName,
-        Contract.Ratings.RatingRemovedEventName,
-      ],
-      (
-        ratings: (
-          | Contract.Ratings.RatingSubmittedEvent
-          | Contract.Ratings.RatingRemovedEvent
-        )[],
-      ) => {
-        if (
-          ratings.some(({ rater }) => {
-            return rater === this.userAddress;
-          })
-        )
-          this.loadUserRatings();
-      },
-    );
-
-    this.loadUserRatings();
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.listeners.clear();
-  }
-
   clearUserRatings() {
     this.userRatings = [];
     this.totalStake = 0n;
@@ -551,14 +567,14 @@ export class UserRatings extends LitElement {
 
     try {
       const ratings = this.blockchainService.ratings.getRatings({
-        rater: this.userAddress as Address,
+        rater: this.account as Address,
         deleted: false,
       });
+      const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
 
-      this.totalStake = ratings.reduce(
-        (total, rating) => total + rating.stake,
-        0n,
-      );
+      this.totalStake =
+        stakePerSecond *
+        ratings.reduce((total, rating) => total + rating.stake, 0n);
     } catch (error) {
       this.clearUserRatings();
       throw new Error(`Failed to load user ratings: ${error}`);

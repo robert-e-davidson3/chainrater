@@ -17,6 +17,7 @@
   "dependencies": {
     "@chainrater/calc-lib": "^0.1.0",
     "@lit/context": "^1.1.5",
+    "events": "^3.3.0",
     "lit": "^3.3.0",
     "viem": "^2.9.0"
   },

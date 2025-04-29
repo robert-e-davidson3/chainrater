@@ -74,6 +74,7 @@ export class ChainRater extends LitElement {
       case "myratings":
         return html`
           <user-ratings
+            .account=${this.account}
             @edit-rating=${this.handleEditRating}
             @rating-removed=${this.handleRatingRemoved}
           ></user-ratings>

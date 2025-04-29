@@ -778,8 +778,13 @@ export class RatingSearch extends LitElement {
         result.decodedURI ||
         this.blockchainService.ratings.getUriFromHash(result.uriHash);
 
+      const rater = result.rater;
+      if (!uri || !rater) {
+        throw new Error("Must specify both URI and rater address");
+      }
+
       // Assuming removeRating can be used to clean up expired ratings
-      await this.blockchainService.ratings.removeRating(uri);
+      await this.blockchainService.ratings.removeRating(uri, rater);
 
       // Remove from list after successful cleanup
       this.searchResults = this.searchResults.filter(

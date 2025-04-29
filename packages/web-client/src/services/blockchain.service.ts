@@ -222,7 +222,7 @@ export namespace Contract {
         _: {
           deleted: true;
           rater: Address;
-          expired?: boolean;
+          expired: boolean;
         } & ({ uri: string } | { uriHash: string }),
       ): DeletedRating | null;
       getRatings(
@@ -268,7 +268,7 @@ export namespace Contract {
         deleted,
       }: GetRatingsFilter): Rating | null | Rating[] {
         if (expired !== undefined && deleted !== false)
-          throw new Error("Cannot filter by both expired if deleted != false");
+          throw new Error("Cannot filter by expired if deleted != false");
 
         if (uri !== undefined && uriHash === undefined) uriHash = hashURI(uri);
 
@@ -278,11 +278,13 @@ export namespace Contract {
         let ratings: Rating[] = [];
         let justOne = false;
         if (uriHash && rater) {
+          // Get a single rating
           const rating = this.state.ratings.get(uriHash)?.get(rater);
           if (!rating) return null;
           ratings.push({ ...rating, uriHash, rater });
           justOne = true;
         } else if (uriHash) {
+          // Get all ratings for a specific URI hash
           const raterMap = this.state.ratings.get(uriHash);
           if (raterMap)
             ratings = Array.from(raterMap.entries()).map(([rater, rating]) => ({
@@ -291,11 +293,13 @@ export namespace Contract {
               uriHash,
             }));
         } else if (rater) {
+          // Get all ratings for a specific rater
           this.state.ratings.forEach((raterMap, uriHash) => {
             const rating = raterMap.get(rater);
             if (rating) ratings.push({ ...rating, rater, uriHash });
           });
         } else {
+          // Get all ratings
           this.state.ratings.forEach((raterMap, uriHash) => {
             ratings.push(
               ...Array.from(raterMap.entries()).map(([rater, rating]) => ({
@@ -307,9 +311,11 @@ export namespace Contract {
           });
         }
 
+        // Filter out deleted or existing ratings, depending
         if (deleted !== undefined)
           ratings = ratings.filter((rating) => rating.deleted === deleted);
 
+        // Filter out expired or unexpired ratings, depending
         if (expired !== undefined) {
           const stakePerSecond = this.stakePerSecond;
           if (stakePerSecond === undefined)
@@ -350,11 +356,11 @@ export namespace Contract {
         await this.clients.public.waitForTransactionReceipt({ hash: txHash });
       }
 
-      async removeRating(uri: string) {
+      async removeRating(uri: string, rater: Address) {
         if (!this.account) throw new MissingAccountError();
         const uriHash = hashURI(uri);
 
-        const args = [uriHash] as const;
+        const args = [uriHash, rater] as const;
         const opts = {
           account: this.account,
           chain: this.clients.wallet.chain,

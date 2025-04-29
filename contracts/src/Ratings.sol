@@ -45,7 +45,7 @@ contract Ratings {
     struct Rating {
         uint8 score;
         uint64 posted;
-        uint64 stake; // denominated in 16 wei
+        uint64 stake; // denominated in STAKE_PER_SECOND wei
     }
 
     // Add a new rating.

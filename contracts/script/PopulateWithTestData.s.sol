@@ -12,11 +12,11 @@ contract PopulateWithTestData is Script {
 
     function setUp() public {
         // Initialize sample URIs
-        uriStrings.push("https://github.com");
-        uriStrings.push("https://twitter.com");
-        uriStrings.push("https://youtube.com");
-        uriStrings.push("https://reddit.com");
-        uriStrings.push("https://opensea.io");
+        uriStrings.push("website://github.com");
+        uriStrings.push("website://twitter.com");
+        uriStrings.push("website://youtube.com");
+        uriStrings.push("website://reddit.com");
+        uriStrings.push("website://opensea.io");
         
         // Log URIs
         for (uint i = 0; i < uriStrings.length; i++) {

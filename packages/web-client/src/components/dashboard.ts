@@ -1,5 +1,5 @@
 import { LitElement, html, css } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import {
   BlockchainService,
@@ -12,33 +12,17 @@ import {
 } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 
-interface StakedURIItem {
-  uriHash: string;
-  decodedURI?: string;
-  totalStake: bigint;
-}
-
-interface RatedURIItem {
-  uriHash: string;
-  decodedURI?: string;
-  averageScore: number;
-  ratingCount: number;
-}
-
-interface VarianceURIItem {
-  uriHash: string;
-  decodedURI?: string;
-  variance: number;
-  ratingCount: number;
-}
+//
+// Note that the dashboard does NOT update in real time. Reload to get the latest.
+//
 
 @customElement("app-dashboard")
 export class Dashboard extends LitElement {
-  @property({ type: Object }) tvl = BigInt(0);
-  @property({ type: Array }) topStakedURIs: StakedURIItem[] = [];
-  @property({ type: Array }) topRatedURIs: RatedURIItem[] = [];
-  @property({ type: Array }) topVarianceURIs: VarianceURIItem[] = [];
-  @property({ type: Boolean }) loading = true;
+  @state() tvl = 0n;
+  @state() topStakedURIs: StakedURIItem[] = [];
+  @state() topRatedURIs: RatedURIItem[] = [];
+  @state() topVarianceURIs: VarianceURIItem[] = [];
+  @state() loading = true;
 
   @consume({ context: blockchainServiceContext })
   _blockchainService?: BlockchainService;
@@ -241,8 +225,13 @@ export class Dashboard extends LitElement {
       const ratings = this.blockchainService.ratings.getRatings({
         deleted: false,
       });
+      const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
 
-      this.tvl = ratings.reduce((sum, rating) => sum + rating.stake, 0n);
+      console.log(ratings);
+
+      this.tvl =
+        stakePerSecond *
+        ratings.reduce((sum, rating) => sum + rating.stake, 0n);
 
       // Group ratings by URI hash
       const ratingsByURI = new Map<string, ExistingRating[]>();
@@ -345,4 +334,24 @@ export class Dashboard extends LitElement {
       this.loading = false;
     }
   }
+}
+
+interface StakedURIItem {
+  uriHash: string;
+  decodedURI?: string;
+  totalStake: bigint;
+}
+
+interface RatedURIItem {
+  uriHash: string;
+  decodedURI?: string;
+  averageScore: number;
+  ratingCount: number;
+}
+
+interface VarianceURIItem {
+  uriHash: string;
+  decodedURI?: string;
+  variance: number;
+  ratingCount: number;
 }
