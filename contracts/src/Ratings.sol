@@ -6,28 +6,15 @@ contract Ratings {
         bytes32 indexed uri,
         address indexed rater,
         uint8 score,
-        uint64 stake
-    );
-
-    event RatingReSubmitted(
-        bytes32 indexed uri,
-        address indexed rater,
-        uint8 score,
-        uint64 stake
+        uint64 stake,
+        uint64 posted,
+        bool resubmit
     );
 
     event RatingRemoved(
         bytes32 indexed uri,
         address indexed rater,
-        uint8 score,
-        uint64 stake
-    );
-
-    event RatingCleanedUp(
-        bytes32 indexed uri,
-        address indexed rater,
-        uint8 score,
-        uint64 stake
+        bool cleanup
     );
 
     event UriRevealed(bytes32 indexed uriHash, string uri);
@@ -78,6 +65,8 @@ contract Ratings {
         bytes32 uriHash = keccak256(bytes(uri));
 
         uint64 rebate = ratings[uriHash][msg.sender].stake;
+        bool resubmit = rebate > 0;
+        uint64 posted = uint64(block.timestamp);
 
         // If this URI hash has never been revealed before, emit the UriRevealed event
         if (!revealedUris[uriHash]) {
@@ -85,55 +74,52 @@ contract Ratings {
             emit UriRevealed(uriHash, uri);
         }
 
-        if (rebate > 0) {
+        if (resubmit) {
             // Return previous stake if replacing existing rating
             ratings[uriHash][msg.sender].stake = 0; // prevent re-entrancy
             pay(msg.sender, rebate);
-            emit RatingReSubmitted(uriHash, msg.sender, score, stake);
-        } else {
-            emit RatingSubmitted(uriHash, msg.sender, score, stake);
         }
+        emit RatingSubmitted(
+            uriHash,
+            msg.sender,
+            score,
+            stake,
+            posted,
+            resubmit
+        );
 
         ratings[uriHash][msg.sender] = Rating({
             score: score,
-            posted: uint64(block.timestamp),
+            posted: posted,
             stake: stake / STAKE_PER_SECOND
         });
     }
 
-    // Remove your own rating, and get your stake back.
-    function removeRating(string calldata uri) external {
-        bytes32 uriHash = keccak256(bytes(uri));
-        Rating storage rating = ratings[uriHash][msg.sender];
-
-        if (rating.stake == 0) {
-            revert NoSuchRating(uriHash, msg.sender);
-        }
-
-        uint64 stake = rating.stake;
-        uint8 score = rating.score;
-        delete ratings[uriHash][msg.sender]; // prevent re-entrancy
-        pay(msg.sender, stake);
-        emit RatingRemoved(uriHash, msg.sender, score, stake);
-    }
-
-    // Remove someone else's rating - get their stake.
-    function cleanupRating(string calldata uri, address rater) external {
-        if (rater == address(0)) {
-            revert InvalidRater(rater);
-        }
+    // Remove a rating to get its stake.
+    // Can always remove your own rating.
+    // Can only remove someone else's rating if it has expired.
+    function removeRating(string calldata uri, address rater) external {
+        if (rater == address(0)) revert InvalidRater(rater);
 
         bytes32 uriHash = keccak256(bytes(uri));
         Rating storage rating = ratings[uriHash][rater];
 
-        if (rating.posted + rating.stake > block.timestamp) {
+        if (rating.stake == 0) revert NoSuchRating(uriHash, rater);
+
+        bool isOwnRating = rater == msg.sender;
+
+        // If rating is stil valid then only the rater can remove it.
+        if (
+            !isOwnRating &&
+            rating.posted + rating.stake > block.timestamp && 
+        ) {
             revert RatingIsStillValid(rating.posted, rating.stake);
         }
 
         uint64 stake = rating.stake;
         uint8 score = rating.score;
         delete ratings[uriHash][rater]; // prevent re-entrancy
-        emit RatingCleanedUp(uriHash, rater, score, stake);
+        emit RatingRemoved(uriHash, rater, isOwnRating);
         pay(rater, stake);
     }
 

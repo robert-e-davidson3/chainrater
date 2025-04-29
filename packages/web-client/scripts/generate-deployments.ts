@@ -28,7 +28,7 @@ function main(): void {
   const projectRoot = path.resolve(__dirname, "../../..");
   const contractsDir = path.join(projectRoot, "contracts");
   const outputDir = path.join(projectRoot, "packages/web-client/src");
-  const outputFile = path.join(outputDir, "deployments.json");
+  const outputFile = path.join(outputDir, "deployments.ts");
 
   // Ensure output directory exists
   if (!fs.existsSync(outputDir)) {
@@ -133,8 +133,8 @@ function main(): void {
     }
   }
 
-  // Write the output file
-  fs.writeFileSync(outputFile, JSON.stringify(deployments, null, 2));
+  const body = JSON.stringify(deployments, null, 2);
+  fs.writeFileSync(outputFile, `export default ${body} as const`, "utf8");
 
   console.log(`Deployments file generated at ${outputFile}`);
 }

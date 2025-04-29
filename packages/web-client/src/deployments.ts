@@ -1,4 +1,4 @@
-{
+export default {
   "contracts": {
     "Ratings": {
       "abi": [
@@ -195,68 +195,6 @@
         },
         {
           "type": "event",
-          "name": "RatingCleanedUp",
-          "inputs": [
-            {
-              "name": "uri",
-              "type": "bytes32",
-              "indexed": true,
-              "internalType": "bytes32"
-            },
-            {
-              "name": "rater",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-            },
-            {
-              "name": "score",
-              "type": "uint8",
-              "indexed": false,
-              "internalType": "uint8"
-            },
-            {
-              "name": "stake",
-              "type": "uint64",
-              "indexed": false,
-              "internalType": "uint64"
-            }
-          ],
-          "anonymous": false
-        },
-        {
-          "type": "event",
-          "name": "RatingReSubmitted",
-          "inputs": [
-            {
-              "name": "uri",
-              "type": "bytes32",
-              "indexed": true,
-              "internalType": "bytes32"
-            },
-            {
-              "name": "rater",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-            },
-            {
-              "name": "score",
-              "type": "uint8",
-              "indexed": false,
-              "internalType": "uint8"
-            },
-            {
-              "name": "stake",
-              "type": "uint64",
-              "indexed": false,
-              "internalType": "uint64"
-            }
-          ],
-          "anonymous": false
-        },
-        {
-          "type": "event",
           "name": "RatingRemoved",
           "inputs": [
             {
@@ -272,16 +210,10 @@
               "internalType": "address"
             },
             {
-              "name": "score",
-              "type": "uint8",
+              "name": "cleanup",
+              "type": "bool",
               "indexed": false,
-              "internalType": "uint8"
-            },
-            {
-              "name": "stake",
-              "type": "uint64",
-              "indexed": false,
-              "internalType": "uint64"
+              "internalType": "bool"
             }
           ],
           "anonymous": false
@@ -313,6 +245,18 @@
               "type": "uint64",
               "indexed": false,
               "internalType": "uint64"
+            },
+            {
+              "name": "posted",
+              "type": "uint64",
+              "indexed": false,
+              "internalType": "uint64"
+            },
+            {
+              "name": "resubmit",
+              "type": "bool",
+              "indexed": false,
+              "internalType": "bool"
             }
           ],
           "anonymous": false
@@ -407,4 +351,4 @@
       }
     }
   }
-}
+} as const
