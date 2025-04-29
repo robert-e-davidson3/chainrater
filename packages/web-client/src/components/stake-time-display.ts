@@ -38,12 +38,18 @@ export class StakeTimeDisplay extends LitElement {
     :host {
       display: inline-block;
       position: relative;
+      font-size: inherit;
+      color: inherit;
     }
 
     .time-display {
       cursor: pointer;
       color: var(--primary-color, #3498db);
       font-weight: 500;
+    }
+    
+    :host(.inherit-color) .time-display {
+      color: inherit;
     }
 
     .time-display:hover {

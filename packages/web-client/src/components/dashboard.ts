@@ -61,6 +61,8 @@ export class Dashboard extends LitElement {
       font-weight: bold;
       color: #3498db;
       margin: 1rem 0;
+      display: flex;
+      justify-content: center;
     }
 
     .top-lists {
@@ -139,8 +141,15 @@ export class Dashboard extends LitElement {
     return html`
       <section class="dashboard">
         <div class="stats-card">
-          <h2>Total Value Locked</h2>
-          <div class="tvl-value">${formatETH(this.tvl)}</div>
+          <h2>Total Time Locked</h2>
+          <div class="tvl-value">
+            <stake-time-display 
+              class="inherit-color"
+              .stake=${this.tvl}
+              .aggregateMode=${true}
+              .showDetails=${true}
+            ></stake-time-display>
+          </div>
         </div>
 
         <div class="top-lists">
