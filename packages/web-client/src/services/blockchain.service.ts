@@ -19,11 +19,7 @@ import EventEmitter from "events";
 // This file is generated from the Foundry artifacts.
 import deployments from "../../src/deployments.js";
 
-// TODO stop being a singleton - use Lit context?
 export class BlockchainService extends EventEmitter {
-  // Singleton instance
-  private static instance: BlockchainService;
-
   private client: Clients | null = null;
   private _account?: Address;
   private _chainId: ChainId | null = null;
@@ -32,7 +28,7 @@ export class BlockchainService extends EventEmitter {
     ratings: Contract.Ratings.Ratings;
   };
 
-  private constructor() {
+  constructor() {
     super();
     if (!window.ethereum) throw new MissingWeb3Error();
 
@@ -142,13 +138,6 @@ export class BlockchainService extends EventEmitter {
       .then((chainIdHex) => parseInt(chainIdHex as string, 16));
     if (!isChainId(chainId)) throw new BadChainError(chainId);
     return chainId;
-  }
-
-  public static getInstance(): BlockchainService {
-    if (!BlockchainService.instance) {
-      BlockchainService.instance = new BlockchainService();
-    }
-    return BlockchainService.instance;
   }
 }
 

@@ -15,7 +15,7 @@ import { blockchainServiceContext } from "../contexts/blockchain-service.context
 @customElement("chain-rater")
 export class ChainRater extends LitElement {
   @provide({ context: blockchainServiceContext })
-  blockchainService: BlockchainService = BlockchainService.getInstance();
+  blockchainService: BlockchainService = new BlockchainService();
 
   @property({ type: String })
   activeTab = "dashboard";
@@ -46,10 +46,6 @@ export class ChainRater extends LitElement {
       margin: 0 auto;
     }
   `;
-
-  firstUpdate() {
-    this.blockchainService = BlockchainService.getInstance();
-  }
 
   render() {
     return html`

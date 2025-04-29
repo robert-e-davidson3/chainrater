@@ -403,8 +403,15 @@ export class UserRatings extends LitElement {
   @property({ type: Array }) userRatings: Rating[] = [];
   @property({ type: Object }) totalStake = BigInt(0);
   @property({ type: Boolean }) loading = true;
-  @property({ type: Object }) blockchainService: BlockchainService =
-    BlockchainService.getInstance();
+
+  @consume({ context: blockchainServiceContext })
+  _blockchainService?: BlockchainService;
+
+  get blockchainService() {
+    if (!this._blockchainService)
+      throw new MissingContextError("blockchainServiceContext");
+    return this._blockchainService;
+  }
 
   private listeners = new ListenerManager();
 
