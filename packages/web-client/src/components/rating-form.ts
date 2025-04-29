@@ -1,16 +1,18 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { consume } from "@lit/context";
 import { parseEther } from "viem";
 import {
   type ExistingRating,
   BlockchainService,
 } from "../services/blockchain.service.js";
-import { formatETH } from "../utils/blockchain.utils.js";
+import { formatETH, MissingContextError } from "../utils/blockchain.utils.js";
 import { URIValidator } from "../utils/uri.utils.js";
+import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 
 @customElement("rating-form")
 export class RatingForm extends LitElement {
-  @property({ type: String }) uriInput = "";
+  @property({ type: String }) uriInput = ""; // URI, not its hash
   @property({ type: Number }) scoreInput = 3;
   @property({ type: String }) stakeInput = "";
   @property({ type: Object }) minStake = BigInt(0);
@@ -21,7 +23,14 @@ export class RatingForm extends LitElement {
   @state() private errorMessage = "";
   @state() private showURIExamples = false;
 
-  private blockchainService = BlockchainService.getInstance();
+  @consume({ context: blockchainServiceContext })
+  _blockchainService?: BlockchainService;
+
+  get blockchainService() {
+    if (!this._blockchainService)
+      throw new MissingContextError("blockchainServiceContext");
+    return this._blockchainService;
+  }
 
   static styles = css`
     :host {
@@ -284,62 +293,9 @@ export class RatingForm extends LitElement {
     this.showURIExamples = !this.showURIExamples;
   }
 
-  async connectedCallback() {
-    super.connectedCallback();
-
-    // Try to get minimum stake from contract
-    try {
-      if (this.blockchainService.isConnected()) {
-        this.minStake = await this.blockchainService.minStake();
-      } else {
-        // Default: MIN_STAKE = STAKE_PER_SECOND * 1 weeks;
-        this.minStake = BigInt(16000000 * 604800);
-      }
-    } catch (error) {
-      console.error("Error getting minimum stake:", error);
-    }
-
-    // If editing, populate form with existing rating
-    if (this.isEditing && this.existingRating) {
-      this.uriInput = this.existingRating.decodedURI || "";
-      this.scoreInput = this.existingRating.score;
-      this.stakeInput = formatETH(this.existingRating.stake).replace(
-        " ETH",
-        "",
-      );
-    } else if (
-      this.isEditing &&
-      this.uriInput &&
-      this.blockchainService.isConnected()
-    ) {
-      // If editing mode but we don't have the existing rating, try to fetch it
-      try {
-        const address = this.blockchainService.address;
-        if (address) {
-          const ratings = (await this.blockchainService.getRatings({
-            uri: this.uriInput,
-            rater: address,
-            deleted: false,
-          })) as ExistingRating[];
-
-          if (ratings.length > 0) {
-            this.existingRating = ratings[0];
-            this.scoreInput = this.existingRating.score;
-            this.stakeInput = formatETH(this.existingRating.stake).replace(
-              " ETH",
-              "",
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching existing rating:", error);
-      }
-    }
-  }
-
   validateForm(): boolean {
     // Check if connected
-    if (!this.blockchainService.isConnected()) {
+    if (!this.blockchainService.ready) {
       this.errorMessage = "Please connect your wallet first";
       return false;
     }
@@ -392,11 +348,12 @@ export class RatingForm extends LitElement {
 
     try {
       const stakeWei = parseEther(this.stakeInput);
+      const stake = stakeWei / this.blockchainService.ratings.stakePerSecond;
 
-      await this.blockchainService.submitRating(
+      await this.blockchainService.ratings.submitRating(
         this.uriInput,
         this.scoreInput,
-        stakeWei,
+        stake,
       );
 
       // Reset form if not editing
@@ -410,7 +367,7 @@ export class RatingForm extends LitElement {
           detail: {
             uri: this.uriInput,
             score: this.scoreInput,
-            stake: BigInt(stakeWei.toString()),
+            stake,
           },
           bubbles: true,
           composed: true,
@@ -442,42 +399,5 @@ export class RatingForm extends LitElement {
     this.errorMessage = "";
     this.isEditing = false;
     this.existingRating = null;
-  }
-
-  // Method to set values when navigating from another component
-  async setValues(uri: string, score: number = 3, stake: string = "") {
-    this.uriInput = uri;
-
-    // Check if the user already has a rating for this URI
-    if (uri && this.blockchainService.isConnected()) {
-      try {
-        const address = this.blockchainService.address;
-        if (address) {
-          const ratings = (await this.blockchainService.getRatings({
-            uri,
-            rater: address,
-            deleted: false,
-          })) as ExistingRating[];
-
-          if (ratings.length > 0) {
-            // User already rated this item
-            this.existingRating = ratings[0];
-            this.isEditing = true;
-            this.scoreInput = this.existingRating.score;
-            this.stakeInput = formatETH(this.existingRating.stake).replace(
-              " ETH",
-              "",
-            );
-            return;
-          }
-        }
-      } catch (error) {
-        console.error("Error checking existing rating:", error);
-      }
-    }
-
-    // If no existing rating or error, use provided values
-    this.scoreInput = score;
-    this.stakeInput = stake;
   }
 }

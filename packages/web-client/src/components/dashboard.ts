@@ -1,10 +1,16 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { consume } from "@lit/context";
 import {
   BlockchainService,
   type ExistingRating,
 } from "../services/blockchain.service.js";
-import { formatETH, shortenAddress } from "../utils/blockchain.utils.js";
+import {
+  formatETH,
+  shortenAddress,
+  MissingContextError,
+} from "../utils/blockchain.utils.js";
+import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 
 interface StakedURIItem {
   uriHash: string;
@@ -34,8 +40,14 @@ export class Dashboard extends LitElement {
   @property({ type: Array }) topVarianceURIs: VarianceURIItem[] = [];
   @property({ type: Boolean }) loading = true;
 
-  private blockchainService = BlockchainService.getInstance();
-  private unsubscribeRatings: (() => void) | null = null;
+  @consume({ context: blockchainServiceContext })
+  _blockchainService?: BlockchainService;
+
+  get blockchainService() {
+    if (!this._blockchainService)
+      throw new MissingContextError("blockchainServiceContext");
+    return this._blockchainService;
+  }
 
   static styles = css`
     :host {
@@ -171,7 +183,7 @@ export class Dashboard extends LitElement {
     }
 
     const elements = items.map((item) => {
-      const uri = this.blockchainService.URIFromHash(item.uriHash);
+      const uri = this.blockchainService.ratings.getUriFromHash(item.uriHash);
       const label = uri ?? shortenAddress(item.uriHash);
       const value = this.formatValue(item, valueType);
       return html`
@@ -219,42 +231,23 @@ export class Dashboard extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    // Subscribe to rating changes
-    this.unsubscribeRatings = this.blockchainService.onRatingsChanged(() => {
-      this.loadDashboardData();
-    });
     this.loadDashboardData();
-  }
-  
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    // Clean up subscription
-    if (this.unsubscribeRatings) {
-      this.unsubscribeRatings();
-      this.unsubscribeRatings = null;
-    }
   }
 
   async loadDashboardData() {
     this.loading = true;
 
     try {
-      if (!this.blockchainService.isConnected())
-        await this.blockchainService.connect();
-
-      const allRatings = (await this.blockchainService.getRatings({
+      const ratings = this.blockchainService.ratings.getRatings({
         deleted: false,
-      })) as ExistingRating[];
+      });
 
-      this.tvl = allRatings.reduce(
-        (sum, rating) => sum + rating.stake,
-        BigInt(0),
-      );
+      this.tvl = ratings.reduce((sum, rating) => sum + rating.stake, 0n);
 
       // Group ratings by URI hash
       const ratingsByURI = new Map<string, ExistingRating[]>();
 
-      for (const rating of allRatings) {
+      for (const rating of ratings) {
         if (!ratingsByURI.has(rating.uriHash)) {
           ratingsByURI.set(rating.uriHash, []);
         }
@@ -293,9 +286,12 @@ export class Dashboard extends LitElement {
         const variance =
           ratingCount > 1 ? Math.sqrt(squaredDiffs / (ratingCount - 1)) : 0;
 
+        const decodedURI =
+          this.blockchainService.ratings.getUriFromHash(uriHash);
+
         uriStats.set(uriHash, {
           uriHash,
-          decodedURI: ratings[0].decodedURI,
+          decodedURI,
           totalStake,
           averageScore,
           ratingCount,

@@ -1,17 +1,30 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { consume } from "@lit/context";
 import { BlockchainService } from "../services/blockchain.service.js";
-import { shortenAddress } from "../utils/blockchain.utils.js";
+import {
+  shortenAddress,
+  MissingContextError,
+} from "../utils/blockchain.utils.js";
+
+import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 
 @customElement("header-nav")
 export class HeaderNav extends LitElement {
-  @property({ type: Boolean }) isConnected = false;
+  @consume({ context: blockchainServiceContext })
+  _blockchainService?: BlockchainService;
+
+  get blockchainService() {
+    if (!this._blockchainService)
+      throw new MissingContextError("blockchainServiceContext");
+    return this._blockchainService;
+  }
+
+  @property({ type: Boolean })
+  isConnected = false;
   @property({ type: String }) activeTab = "dashboard";
   @property({ type: String }) accountAddress = "";
   @state() private isConnecting = false;
-
-  private blockchainService = BlockchainService.getInstance();
-  private unsubscribeAccount: (() => void) | null = null;
 
   static styles = css`
     :host {
@@ -96,45 +109,6 @@ export class HeaderNav extends LitElement {
     }
   `;
 
-  connectedCallback() {
-    super.connectedCallback();
-
-    // Subscribe to account changes
-    this.unsubscribeAccount = this.blockchainService.onAccountChanged(() => {
-      this.updateConnectionState();
-    });
-
-    // Check if already connected
-    this.updateConnectionState();
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-
-    // Unsubscribe from account changes
-    if (this.unsubscribeAccount) {
-      this.unsubscribeAccount();
-      this.unsubscribeAccount = null;
-    }
-  }
-
-  private updateConnectionState() {
-    const address = this.blockchainService.address;
-    this.isConnected = !!address;
-    this.accountAddress = address || "";
-
-    if (this.isConnected) {
-      // Dispatch connected event
-      this.dispatchEvent(
-        new CustomEvent("wallet-connected", {
-          detail: { account: this.accountAddress },
-          bubbles: true,
-          composed: true,
-        }),
-      );
-    }
-  }
-
   render() {
     return html`
       <header>
@@ -193,14 +167,14 @@ export class HeaderNav extends LitElement {
     this.isConnecting = true;
 
     try {
-      const account = await this.blockchainService.connect();
+      await this.blockchainService.connect();
+      this.accountAddress = this.blockchainService.account ?? "";
       this.isConnected = true;
-      this.accountAddress = account;
 
       // Dispatch connected event
       this.dispatchEvent(
         new CustomEvent("wallet-connected", {
-          detail: { account },
+          detail: { account: this.accountAddress },
           bubbles: true,
           composed: true,
         }),
@@ -216,7 +190,7 @@ export class HeaderNav extends LitElement {
   }
 
   async disconnect() {
-    await this.blockchainService.disconnect();
+    this.blockchainService.disconnect();
     this.isConnected = false;
     this.accountAddress = "";
 

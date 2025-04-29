@@ -230,17 +230,47 @@ export namespace Contract {
       // To get a single rating directly from the blockchain, use `getRating`.
       // Returns a single rating (or null) if `rater` and `uriHash`/`uri` are provided.
       getRatings(
-        _:
-          | RequiredFields<GetRatingsFilter, "uriHash" | "rater">
-          | RequiredFields<GetRatingsFilter, "uri" | "rater">,
+        _: {
+          deleted: true;
+          rater: Address;
+          expired?: boolean;
+        } & ({ uri: string } | { uriHash: string }),
+      ): DeletedRating | null;
+      getRatings(
+        _: {
+          deleted: false;
+          rater: Address;
+          expired?: boolean;
+        } & ({ uri: string } | { uriHash: string }),
+      ): ExistingRating | null;
+      getRatings(
+        _: {
+          deleted: undefined;
+          rater: Address;
+          expired?: boolean;
+        } & ({ uri: string } | { uriHash: string }),
       ): Rating | null;
       getRatings(
-        _: WithRequiredFieldValues<GetRatingsFilter, { deleted: false }>,
+        _: {
+          deleted: true;
+          rater?: Address;
+          expired?: boolean;
+        } & ({ uri?: string } | { uriHash?: string }),
+      ): DeletedRating[];
+      getRatings(
+        _: {
+          deleted: false;
+          rater?: Address;
+          expired?: boolean;
+        } & ({ uri?: string } | { uriHash?: string }),
       ): ExistingRating[];
       getRatings(
-        _: WithRequiredFieldValues<GetRatingsFilter, { deleted: false }>,
-      ): DeletedRating[];
-      getRatings(_: GetRatingsFilter): Rating[];
+        _: {
+          deleted?: boolean;
+          rater?: Address;
+          expired?: boolean;
+        } & ({ uri?: string } | { uriHash?: string }),
+      ): Rating[];
       getRatings({
         uriHash,
         uri,
@@ -315,10 +345,11 @@ export namespace Contract {
         if (!this.account) throw new MissingAccountError();
 
         const uriHash = hashURI(uri);
+        const stakeInWei = stake * this.stakePerSecond;
 
         const args = [uriHash, score] as const;
         const opts = {
-          value: stake,
+          value: stakeInWei,
           account: this.account,
           chain: this.clients.wallet.chain,
         } as const;
@@ -729,9 +760,9 @@ export class AlreadyInitializedError extends Error {
   }
 }
 
-type RequiredFields<T, K extends keyof T> = Required<Pick<T, K>> & Omit<T, K>;
-type WithRequiredFieldValues<T, V extends Partial<Record<keyof T, any>>> = Omit<
-  T,
-  keyof V
-> &
-  V;
+// type  RequiredFields<T, K extends keyof T> = Required<Pick<T, K>> & Omit<T, K>;
+// type WithRequiredFieldValues<T, V extends Partial<Record<keyof T, any>>> = Omit<
+//   T,
+//   keyof V
+// > &
+//   V;

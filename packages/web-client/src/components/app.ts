@@ -1,5 +1,6 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { provide } from "@lit/context";
 import "./header-nav.js";
 import "./dashboard.js";
 import "./user-ratings.js";
@@ -9,14 +10,18 @@ import {
   BlockchainService,
   type Rating,
 } from "../services/blockchain.service.js";
+import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 
 @customElement("chain-rater")
 export class ChainRater extends LitElement {
-  @property({ type: String }) activeTab = "dashboard";
+  @provide({ context: blockchainServiceContext })
+  blockchainService: BlockchainService = BlockchainService.getInstance();
+
+  @property({ type: String })
+  activeTab = "dashboard";
   @property({ type: Boolean }) isConnected = false;
   @property({ type: String }) account = "";
 
-  @state() private blockchainService!: BlockchainService;
   @state() private ratingToEdit: Rating | null = null;
   @state() private prefilledURI = "";
 

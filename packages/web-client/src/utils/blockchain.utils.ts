@@ -97,3 +97,10 @@ export function formatTimeAgo(date: Date): string {
 export function hashURI(uri: string): Hex {
   return keccak256(stringToHex(uri));
 }
+
+export class MissingContextError extends Error {
+  constructor(context: string) {
+    super(`Missing context: ${context}`);
+    this.name = "MissingContextError";
+  }
+}

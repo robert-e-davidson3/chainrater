@@ -1,14 +1,20 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { consume } from "@lit/context";
 import {
   type Rating,
   BlockchainService,
   Contract,
   ExistingRating,
 } from "../services/blockchain.service.js";
-import { formatETH, formatTimeRemaining } from "../utils/blockchain.utils.js";
+import {
+  formatETH,
+  formatTimeRemaining,
+  MissingContextError,
+} from "../utils/blockchain.utils.js";
 import { Address } from "viem";
 import { ListenerManager } from "../utils/listener.utils.js";
+import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 
 /**
  * Rating stars component
@@ -260,6 +266,15 @@ export class RatingItem extends LitElement {
  */
 @customElement("ratings-list")
 export class RatingsList extends LitElement {
+  @consume({ context: blockchainServiceContext })
+  _blockchainService?: BlockchainService;
+
+  get blockchainService() {
+    if (!this._blockchainService)
+      throw new MissingContextError("blockchainServiceContext");
+    return this._blockchainService;
+  }
+
   @property({ type: Array }) ratings: ExistingRating[] = [];
 
   static styles = css`
@@ -320,14 +335,13 @@ export class RatingsList extends LitElement {
       return html`<p class="empty-list">You haven't rated any items yet</p>`;
     }
 
-    const blockchainService = BlockchainService.getInstance();
-    if (!blockchainService.ready)
+    if (!this.blockchainService.ready)
       return html`<p class="empty-list">Loading...</p>`;
-    const stakePerSecond = blockchainService.ratings.stakePerSecond;
+    const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
 
     const items = this.ratings.map((rating) => {
       const { uriHash, stake, posted } = rating;
-      const uri = blockchainService.ratings.getUriFromHash(uriHash);
+      const uri = this.blockchainService.ratings.getUriFromHash(uriHash);
       const expirationTime = new Date(
         1000 * (Number(posted) + Number(stake) / Number(stakePerSecond)),
       );
@@ -535,7 +549,7 @@ export class UserRatings extends LitElement {
       });
 
       this.totalStake = ratings.reduce(
-        (total, rating) => total + (rating as ExistingRating).stake,
+        (total, rating) => total + rating.stake,
         0n,
       );
     } catch (error) {

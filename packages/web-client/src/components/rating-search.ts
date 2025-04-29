@@ -1,11 +1,18 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { consume } from "@lit/context";
 import {
   type SearchResult,
   BlockchainService,
   ExistingRating,
+  calculateExpirationTime,
 } from "../services/blockchain.service.js";
-import { formatETH, formatTimeAgo } from "../utils/blockchain.utils.js";
+import {
+  formatETH,
+  formatTimeAgo,
+  MissingContextError,
+} from "../utils/blockchain.utils.js";
+import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 
 const SEARCH_TYPES = ["all", "guide", "rate", "cleanup"];
 type SearchType = (typeof SEARCH_TYPES)[number];
@@ -157,7 +164,10 @@ export class SearchControls extends LitElement {
           <option value="cleanup">Find Expired Ratings</option>
         </select>
 
-        <button @click=${this.handleSearch} ?disabled=${this.isSearching}>
+        <button
+          @click=${this.emitPerformSearchEvent}
+          ?disabled=${this.isSearching}
+        >
           ${this.isSearching ? "Searching..." : "Search"}
         </button>
       </div>
@@ -167,41 +177,44 @@ export class SearchControls extends LitElement {
   handleInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
     this.searchInput = input.value;
-    this.dispatchEvent(
-      new CustomEvent("search-input-change", {
-        detail: { value: input.value },
-        bubbles: true,
-        composed: true,
-      }),
-    );
+    this.emitSearchInputChangeEvent(input.value);
   }
 
   handleTypeChange(e: Event) {
     const select = e.target as HTMLSelectElement;
     this.searchType = select.value;
+    this.emitSearchTypeChangeEvent(select.value);
+  }
+
+  handleKeyDown(e: KeyboardEvent) {
+    if (e.key === "Enter") {
+      this.emitPerformSearchEvent();
+    }
+  }
+
+  emitPerformSearchEvent() {
     this.dispatchEvent(
-      new CustomEvent("search-type-change", {
-        detail: { value: select.value },
+      new CustomEvent("perform-search", {
         bubbles: true,
         composed: true,
       }),
     );
   }
 
-  handleKeyDown(e: KeyboardEvent) {
-    if (e.key === "Enter") {
-      this.dispatchEvent(
-        new CustomEvent("perform-search", {
-          bubbles: true,
-          composed: true,
-        }),
-      );
-    }
+  emitSearchInputChangeEvent(value: string) {
+    this.dispatchEvent(
+      new CustomEvent("search-input-change", {
+        detail: { value },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
-  handleSearch() {
+  emitSearchTypeChangeEvent(value: string) {
     this.dispatchEvent(
-      new CustomEvent("perform-search", {
+      new CustomEvent("search-type-change", {
+        detail: { value },
         bubbles: true,
         composed: true,
       }),
@@ -518,7 +531,14 @@ export class RatingSearch extends LitElement {
   @state() private isSearching = false;
   @state() private errorMessage = "";
 
-  private blockchainService = BlockchainService.getInstance();
+  @consume({ context: blockchainServiceContext })
+  _blockchainService?: BlockchainService;
+
+  get blockchainService() {
+    if (!this._blockchainService)
+      throw new MissingContextError("blockchainServiceContext");
+    return this._blockchainService;
+  }
 
   static styles = css`
     :host {
@@ -591,7 +611,7 @@ export class RatingSearch extends LitElement {
     this.errorMessage = "";
 
     try {
-      if (!this.blockchainService.isConnected() && this.searchType !== "all") {
+      if (!this.blockchainService.ready && this.searchType !== "all") {
         throw new Error("Please connect your wallet first");
       }
 
@@ -606,7 +626,7 @@ export class RatingSearch extends LitElement {
       ) {
         try {
           // Get ratings for the specified URI
-          const ratings = await this.blockchainService.getRatings({
+          const ratings = this.blockchainService.ratings.getRatings({
             uri: this.searchInput,
             deleted: false,
           });
@@ -637,25 +657,28 @@ export class RatingSearch extends LitElement {
       if (this.searchType === "cleanup") {
         try {
           // Get all expired ratings that haven't been deleted
-          const expiredRatings = (await this.blockchainService.getRatings({
+          const expiredRatings = this.blockchainService.ratings.getRatings({
             expired: true,
             deleted: false,
-          })) as ExistingRating[];
+          }) as ExistingRating[];
 
           // Convert each expired rating to a search result
           for (const rating of expiredRatings) {
             // Calculate expiration time
             const stakePerSecond =
-              await this.blockchainService.stakePerSecond();
-            const expirationTime = new Date(
-              (Number(rating.posted) +
-                Number(rating.stake) / Number(stakePerSecond)) *
-                1000,
+              this.blockchainService.ratings.stakePerSecond;
+            const uri = this.blockchainService.ratings.getUriFromHash(
+              rating.uriHash,
+            );
+            const expirationTime = calculateExpirationTime(
+              rating.posted,
+              rating.stake,
+              stakePerSecond,
             );
 
             results.push({
               uriHash: rating.uriHash,
-              decodedURI: rating.decodedURI,
+              decodedURI: uri,
               averageScore: rating.score,
               ratingCount: 1,
               stake: rating.stake.toString(),
@@ -728,7 +751,7 @@ export class RatingSearch extends LitElement {
   }
 
   async cleanupRating(result: SearchResult) {
-    if (!this.blockchainService.isConnected()) {
+    if (!this.blockchainService.ready) {
       this.errorMessage = "Please connect your wallet first";
       return;
     }
@@ -750,10 +773,13 @@ export class RatingSearch extends LitElement {
     }
 
     try {
-      await this.blockchainService.cleanupRating(
-        result.decodedURI || "",
-        raterAddress,
-      );
+      // Use the URI from decodedURI or get it from the hash
+      const uri =
+        result.decodedURI ||
+        this.blockchainService.ratings.getUriFromHash(result.uriHash);
+
+      // Assuming removeRating can be used to clean up expired ratings
+      await this.blockchainService.ratings.removeRating(uri);
 
       // Remove from list after successful cleanup
       this.searchResults = this.searchResults.filter(
