@@ -39,21 +39,28 @@ contract RatingTest is Test {
         ratings.submitRating{value: stake}(testUri, score);
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
-        assertEq(entries.length, 2);
-        assertEq(entries[0].topics[0], keccak256("UriRevealed(bytes32,string)"), "UriRevealed topic[0]");
+        assertEq(entries.length, 2, "entries.length==2");
+        assertEq(
+            entries[0].topics[0],
+            keccak256("UriRevealed(bytes32,string)"),
+            "UriRevealed topic[0]"
+        );
         assertEq(entries[0].topics[1], testUriHash, "UriRevealed topic[1]");
         assertEq(abi.decode(entries[0].data, (string)), testUri,"UriRevealed data");
 
-        assertEq(entries[1].topics[0], keccak256("RatingSubmitted(bytes32,address,uint8,uint64)"));
-        
+        assertEq(
+            entries[1].topics[0],
+            keccak256("RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"),
+            "entries[1].topics[0]"
+        );
 
         Ratings.Rating memory r = ratings.getRatingByString(
             testUri,
             address(this)
         );
-        assertEq(r.score, score);
-        assertEq(r.stake, stake / ratings.STAKE_PER_SECOND());
-        assertEq(r.posted, block.timestamp);
+        assertEq(r.score, score, "score");
+        assertEq(r.stake, stake, "stake");
+        assertEq(r.posted, block.timestamp, "posted");
     }
 
     // Test all valid ratings (1-5)
@@ -149,7 +156,7 @@ contract RatingTest is Test {
             address(this)
         );
         assertEq(r.score, newScore, "r.score");
-        assertEq(r.stake, newStake / ratings.STAKE_PER_SECOND(), "r.stake");
+        assertEq(r.stake, newStake, "r.stake");
 
         // Verify the UriRevealed event is NOT emitted on rating replacement
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -241,6 +248,7 @@ contract RatingTest is Test {
     // Test cleanup of still valid rating
     function testCleanupValidRating() public {
         vm.startPrank(user1);
+        vm.warp(1745950000);
 
         uint8 score = 5;
         uint64 stake = ratings.MIN_STAKE();
@@ -248,15 +256,20 @@ contract RatingTest is Test {
 
         vm.stopPrank();
 
+        vm.startPrank(user2);
+
+        vm.warp(1745951111);
+
         // Try to cleanup a still valid rating
         vm.expectRevert(
             abi.encodeWithSelector(
                 Ratings.RatingIsStillValid.selector,
-                uint64(block.timestamp),
-                stake / ratings.STAKE_PER_SECOND()
+                uint64(1745950000),
+                stake
             )
         );
         ratings.removeRating(testUri, user1);
+        vm.stopPrank();
     }
 
     // Test cleanup with invalid rater
@@ -286,7 +299,7 @@ contract RatingTest is Test {
 
         // The first topic is the event signature
         bytes32 ratingEventSignature = keccak256(
-            "RatingSubmitted(bytes32,address,uint8,uint64)"
+            "RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"
         );
 
         bytes32 uriRevealedSignature = keccak256("UriRevealed(bytes32,string)");
@@ -335,7 +348,7 @@ contract RatingTest is Test {
             abi.encodeWithSelector(
                 Ratings.RatingIsStillValid.selector,
                 posted,
-                stake / ratings.STAKE_PER_SECOND()
+                stake
             )
         );
         ratings.removeRating(testUri, user1);
