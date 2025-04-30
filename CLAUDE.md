@@ -38,7 +38,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Project Structure
 - Monorepo with workspaces for typescript packages
 - Contracts in contracts/src with tests in parallel directory
-- Contract typescript types derived from deployments.json.
+- Contract typescript types derived from deployments.json
+
+## Web Client Components
+- Uses LitElement for web components
+- Do not use querySelector for component communication
+- Instead communicate between components via:
+  - Re-rendering of sub-components
+  - Emitting events (which can allow changes to the original LitElement)
+  - Passing callbacks
+- Dashboard component displays aggregate rating data by URI, with different sorting methods:
+  - "Highest rated" section sorts by average score
+  - "Most controversial" section sorts by variance/standard deviation
 
 ## Blockchain Interaction
 - Web client uses viem library for blockchain interaction
@@ -47,16 +58,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Chain/account state
   - Contract reads/writes
   - Event subscriptions
+- Components using BlockchainService should:
+  - Listen to "connected" and "disconnected" events to update UI based on web3 connection state
+  - May check BlockchainService.ready but should also listen for connection events
+- Contract.Ratings.Ratings class maintains a mirror of smart contract state:
+  - Enables synchronous reads from mirrored state
+  - Provides methods to read and write to the smart contract
 - User ratings fetched via blockchain events
 - Contract parameters (addresses, ABIs) loaded from generated deployments.json
+
+## Error Handling
+- Preference for custom error classes when throwing errors
+- Avoid try-catch blocks that simply re-throw wrapped errors because:
+  - Stack traces already show error origin
+  - Wrapping adds little value
+  - Makes code harder to reason about
+  - Adds unnecessary verbosity
+
+## UI/UX Restructuring Plan
+The high-level goal is to allow users to explore the contract state in general. This is in contrast to how it works now, where they can only really explore the contract state as it relates to themselves.
+
+### Sub-goals
+1. Get rid of the existing tabs except for Dashboard. Those UI elements will be used later but not at top-level.
+2. Add these tabs: "People", "URIs", "Ratings", "About".
+3. The "People" tab will be a searchable/filterable list of accounts. Each account will show its number of ratings and other interesting stats. If the list is unfiltered then the current user's account is always at top. Each account will lead to another page, which is basically what the "My Ratings" page is now, only for arbitrary users.
+4. The "URIs" tab will be searchable/filterable list of URIs. Each URI will show its average rating and other interesting stats. If the list is unfiltered then the current user's rated URIs are shown. Each URI will lead to another page.
+5. That URI-specific page has the URI's general information at top, followed by the user's rating (or a button to add a rating - it expands into a form), followed by the rest of the ratings.
+6. The "Ratings" tab will be searchable/filtering list of Ratings. Each Rating will show its URI, stars, expiry, and any other facts. If the list is unfiltered then just show the user's ratings.
+7. The "About" tab will have information about me, the github link, etc. It will be a simple LitElement that merely emits static html.
+
+### Important Notes
+- Do not implement pagination - it is for later
+- The tabs will always be at the top, so users can always go to top-level tabs
+- This app uses "URIs" that are NOT "URLs" - valid formats include "restaurant://", "website://", etc.
+- The details of each Rating will include the account that made the rating
+- This process will involve refinement as development progresses
 
 ## Future Considerations
 - **Indexing Service**: Current implementation queries blockchain events directly, which works for development but doesn't scale. A dedicated indexing service (like The Graph) will be needed for production to efficiently query historical data.
 - **URI Hash Storage Strategy**: The current system uses keccak256 hashes of URIs stored on-chain. A more robust approach would involve IPFS for content addressing, particularly for structured metadata about ratings.
 - **Trust Graph**: Work has started but is shelved because it's out of scope for an MVP. But it does need to exist eventually for the product to make sense.
-- **Working Dashboard**: The dashboard should pull from the blockchain. Right now it uses placeholder data.
+- **Working Dashboard**: The dashboard now pulls data from the blockchain and displays ratings with different sorting methods.
 - **Search**: Search does not work at all right now.
-- **Emit URI**: When submitting a new rating, the full URI should be emitted in the log. It might make sense to only emit when the URI is new, but that check might cost more gas. It seems likely that they should be 0-31 bytes or 0-64 bytes, for efficiency... but I don't think 
 - **Simulation**: Simulate txs to give user feedback and to reduce the chance of bad txs getting sent.
 - **Staking Input Tweaks**: Instead of entering in a number to stake, users should enter in a time for the review to be up. AND it should start at the minimum (aka 1 week). The user should see both how long the review will last AND how much weight it will have. IF necessary then use steps of 16 wei (or whatever in the contract) to ensure the stake is valid.
 
