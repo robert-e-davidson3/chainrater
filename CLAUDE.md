@@ -79,8 +79,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The high-level goal is to allow users to explore the contract state in general. This is in contrast to how it works now, where they can only really explore the contract state as it relates to themselves.
 
 ### Sub-goals
-1. Get rid of the existing tabs except for Dashboard. Those UI elements will be used later but not at top-level.
-2. Add these tabs: "People", "URIs", "Ratings", "About".
+1. Get rid of the existing tabs except for Dashboard. Those UI elements will be used later but not at top-level. (DONE)
+2. Add these tabs: "People", "URIs", "Ratings", "About". (DONE)
 3. The "People" tab will be a searchable/filterable list of accounts. Each account will show its number of ratings and other interesting stats. If the list is unfiltered then the current user's account is always at top. Each account will lead to another page, which is basically what the "My Ratings" page is now, only for arbitrary users.
 4. The "URIs" tab will be searchable/filterable list of URIs. Each URI will show its average rating and other interesting stats. If the list is unfiltered then the current user's rated URIs are shown. Each URI will lead to another page.
 5. That URI-specific page has the URI's general information at top, followed by the user's rating (or a button to add a rating - it expands into a form), followed by the rest of the ratings.

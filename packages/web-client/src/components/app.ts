@@ -5,7 +5,7 @@ import "./header-nav.js";
 import "./dashboard.js";
 import "./user-ratings.js";
 import "./rating-form.js";
-import "./rating-search.js";
+import "./about-page.js";
 import {
   BlockchainService,
   type Rating,
@@ -67,18 +67,23 @@ export class ChainRater extends LitElement {
   renderActiveTab() {
     switch (this.activeTab) {
       case "dashboard":
-        return html`<app-dashboard
-          @view-uri=${this.handleViewURI}
-        ></app-dashboard>`;
+        return html`<app-dashboard></app-dashboard>`;
 
+      case "people":
+        return html`<div>People tab coming soon</div>`;
+
+      case "uris":
+        return html`<div>URIs tab coming soon</div>`;
+
+      case "ratings":
+        return html`<div>Ratings tab coming soon</div>`;
+
+      case "about":
+        return html`<about-page></about-page>`;
+
+      // Keep these for reference, but they're no longer accessible from the UI
       case "myratings":
-        return html`
-          <user-ratings
-            .account=${this.account}
-            @edit-rating=${this.handleEditRating}
-            @rating-removed=${this.handleRatingRemoved}
-          ></user-ratings>
-        `;
+        return html` <user-ratings .account=${this.account}></user-ratings> `;
 
       case "rate":
         return html`
@@ -86,17 +91,7 @@ export class ChainRater extends LitElement {
             .isEditing=${!!this.ratingToEdit}
             .existingRating=${this.ratingToEdit}
             .uriInput=${this.prefilledURI}
-            @rating-submitted=${this.handleRatingSubmitted}
-            @edit-cancelled=${this.handleEditCancelled}
           ></rating-form>
-        `;
-
-      case "search":
-        return html`
-          <rating-search
-            @rate-item=${this.handleRateItem}
-            @rating-cleaned=${this.handleRatingCleaned}
-          ></rating-search>
         `;
 
       default:
@@ -122,55 +117,5 @@ export class ChainRater extends LitElement {
   handleWalletDisconnected() {
     this.isConnected = false;
     this.account = "";
-
-    // If on my ratings tab, switch to dashboard since it requires connection
-    if (this.activeTab === "myratings") {
-      this.activeTab = "dashboard";
-    }
-  }
-
-  handleEditRating(e: CustomEvent) {
-    this.ratingToEdit = e.detail.rating;
-    this.activeTab = "rate";
-  }
-
-  handleRatingRemoved(_: CustomEvent) {
-    // Refresh user ratings component
-    this.requestUpdate();
-  }
-
-  handleRatingSubmitted(_: CustomEvent) {
-    // If we were editing, clear the edit state
-    this.ratingToEdit = null;
-    this.prefilledURI = "";
-
-    // Navigate to my ratings after submission
-    if (this.isConnected) {
-      this.activeTab = "myratings";
-
-      // Refresh user ratings component
-      this.requestUpdate();
-    }
-  }
-
-  handleEditCancelled() {
-    this.ratingToEdit = null;
-    this.prefilledURI = "";
-    this.activeTab = "myratings";
-  }
-
-  handleViewURI(e: CustomEvent) {
-    this.prefilledURI = e.detail.uri || "";
-    this.activeTab = "rate";
-  }
-
-  handleRateItem(e: CustomEvent) {
-    this.prefilledURI = e.detail.uri || "";
-    this.activeTab = "rate";
-  }
-
-  handleRatingCleaned(_: CustomEvent) {
-    // Refresh search results
-    this.requestUpdate();
   }
 }

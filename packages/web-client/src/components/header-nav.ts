@@ -122,27 +122,25 @@ export class HeaderNav extends LitElement {
             @click=${() => this.switchTab("dashboard")}
             >Dashboard</a
           >
-
-          ${this.isConnected
-            ? html`
-                <a
-                  class="${this.activeTab === "myratings" ? "active" : ""}"
-                  @click=${() => this.switchTab("myratings")}
-                  >My Ratings</a
-                >
-              `
-            : ""}
-
           <a
-            class="${this.activeTab === "rate" ? "active" : ""}"
-            @click=${() => this.switchTab("rate")}
-            >Rate Item</a
+            class="${this.activeTab === "people" ? "active" : ""}"
+            @click=${() => this.switchTab("people")}
+            >People</a
           >
-
           <a
-            class="${this.activeTab === "search" ? "active" : ""}"
-            @click=${() => this.switchTab("search")}
-            >Search</a
+            class="${this.activeTab === "uris" ? "active" : ""}"
+            @click=${() => this.switchTab("uris")}
+            >URIs</a
+          >
+          <a
+            class="${this.activeTab === "ratings" ? "active" : ""}"
+            @click=${() => this.switchTab("ratings")}
+            >Ratings</a
+          >
+          <a
+            class="${this.activeTab === "about" ? "active" : ""}"
+            @click=${() => this.switchTab("about")}
+            >About</a
           >
         </nav>
 
