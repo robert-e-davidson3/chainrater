@@ -229,7 +229,8 @@ export class Dashboard extends LitElement {
       case "score":
         return `${(item as RatedURIItem).averageScore.toFixed(1)} ★`;
       case "variance":
-        return `${(item as VarianceURIItem).variance.toFixed(2)}`;
+        // Display as stars like average score, but still sort by variance
+        return `${(item as VarianceURIItem).averageScore.toFixed(1)} ★`;
       default:
         return "";
     }
@@ -319,7 +320,13 @@ export class Dashboard extends LitElement {
         const totalScore = ratings.reduce((sum, r) => sum + r.score, 0);
         const averageScore = totalScore / ratingCount;
 
-        // Calculate variance
+        // Calculate variance (standard deviation)
+        // This uses the sample standard deviation formula:
+        // 1. Calculate the mean (averageScore)
+        // 2. For each data point, find squared difference from mean
+        // 3. Sum these squared differences
+        // 4. Divide by (n-1) for the sample variance
+        // 5. Take the square root to get standard deviation
         const squaredDiffs = ratings.reduce(
           (sum, r) => sum + Math.pow(r.score - averageScore, 2),
           0,
@@ -378,6 +385,7 @@ export class Dashboard extends LitElement {
             decodedURI: stats.decodedURI,
             variance: stats.variance,
             ratingCount: stats.ratingCount,
+            averageScore: stats.averageScore,
           }),
         );
     } catch (error) {
@@ -406,4 +414,5 @@ interface VarianceURIItem {
   decodedURI?: string;
   variance: number;
   ratingCount: number;
+  averageScore: number;
 }
