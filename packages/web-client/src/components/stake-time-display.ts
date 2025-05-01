@@ -12,7 +12,7 @@ import {
   SECONDS_IN_HOUR,
   SECONDS_IN_DAY,
   SECONDS_IN_WEEK,
-  SECONDS_IN_YEAR
+  SECONDS_IN_YEAR,
 } from "../utils/time-constants.js";
 
 @customElement("stake-time-display")
@@ -47,7 +47,7 @@ export class StakeTimeDisplay extends LitElement {
       color: var(--primary-color, #3498db);
       font-weight: 500;
     }
-    
+
     :host(.inherit-color) .time-display {
       color: inherit;
     }

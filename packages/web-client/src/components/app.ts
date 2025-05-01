@@ -6,6 +6,7 @@ import "./dashboard.js";
 import "./user-ratings.js";
 import "./rating-form.js";
 import "./about-page.js";
+import "./people-page.js";
 import {
   BlockchainService,
   type Rating,
@@ -70,7 +71,7 @@ export class ChainRater extends LitElement {
         return html`<app-dashboard></app-dashboard>`;
 
       case "people":
-        return html`<div>People tab coming soon</div>`;
+        return html`<people-page></people-page>`;
 
       case "uris":
         return html`<div>URIs tab coming soon</div>`;

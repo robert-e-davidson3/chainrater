@@ -15,6 +15,7 @@ import {
 import { Address } from "viem";
 import { ListenerManager } from "../utils/listener.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
+import "./stake-time-display.js";
 
 /**
  * Rating stars component
@@ -45,6 +46,7 @@ export class RatingStars extends LitElement {
 @customElement("total-stake-card")
 export class TotalStakeCard extends LitElement {
   @property({ type: BigInt }) totalStake: bigint = BigInt(0);
+  @property({ type: Boolean }) isCurrentUser: boolean = false;
 
   static styles = css`
     :host {
@@ -66,13 +68,22 @@ export class TotalStakeCard extends LitElement {
       font-weight: bold;
       color: #3498db;
       margin: 1rem 0;
+      display: flex;
+      justify-content: center;
     }
   `;
 
   render() {
     return html`
-      <h2>Your Total Stake</h2>
-      <div class="stake-value">${formatETH(this.totalStake)}</div>
+      <h2>${this.isCurrentUser ? 'Your' : 'Total'} Stake</h2>
+      <div class="stake-value">
+        <stake-time-display 
+          class="inherit-color"
+          .stake=${this.totalStake}
+          .aggregateMode=${true}
+          .showDetails=${true}
+        ></stake-time-display>
+      </div>
     `;
   }
 }
@@ -114,6 +125,7 @@ export class RatingItem extends LitElement {
   @property({ type: Object }) rating!: ExistingRating;
   @property({ type: String }) uri!: string;
   @property({ type: Date }) expirationTime!: Date;
+  @property({ type: Boolean }) isCurrentUser: boolean = false;
 
   static styles = css`
     :host {
@@ -124,9 +136,16 @@ export class RatingItem extends LitElement {
       padding: 1rem;
       border-bottom: 1px solid #eee;
       display: grid;
-      grid-template-columns: 3fr 1fr 1fr 1fr 1fr;
       gap: 1rem;
       align-items: center;
+    }
+
+    li.with-actions {
+      grid-template-columns: 3fr 1fr 1fr 1fr 1fr;
+    }
+
+    li.no-actions {
+      grid-template-columns: 3fr 1fr 1fr 1fr;
     }
 
     li:last-child {
@@ -202,22 +221,33 @@ export class RatingItem extends LitElement {
   }
 
   render() {
+    const listClass = `${this.getExpirationClass()} ${this.isCurrentUser ? 'with-actions' : 'no-actions'}`;
+    const actions = this.isCurrentUser ? html`
+      <div class="actions">
+        <button @click=${this.handleEdit}>Edit</button>
+        <button class="secondary" @click=${this.handleRemove}>Remove</button>
+      </div>
+    ` : null;
+
     return html`
-      <li class="${this.getExpirationClass()}">
+      <li class="${listClass}">
         <div class="uri">
           ${this.uri || this.rating.uriHash.substring(0, 10) + "..."}
         </div>
         <div class="rating-stars">
           <rating-stars .score=${this.rating.score}></rating-stars>
         </div>
-        <div class="stake">${formatETH(this.rating.stake)}</div>
+        <div class="stake">
+          <stake-time-display 
+            .stake=${this.rating.stake}
+            .aggregateMode=${true}
+            .showDetails=${true}
+          ></stake-time-display>
+        </div>
         <div class="expiration">
           ${formatTimeRemaining(this.expirationTime)}
         </div>
-        <div class="actions">
-          <button @click=${this.handleEdit}>Edit</button>
-          <button class="secondary" @click=${this.handleRemove}>Remove</button>
-        </div>
+        ${actions}
       </li>
     `;
   }
@@ -276,6 +306,7 @@ export class RatingsList extends LitElement {
   }
 
   @property({ type: Array }) ratings: ExistingRating[] = [];
+  @property({ type: Boolean }) isCurrentUser: boolean = false;
 
   static styles = css`
     :host {
@@ -366,6 +397,7 @@ export class RatingsList extends LitElement {
           .rating=${rating}
           .uri=${uri}
           .expirationTime=${expirationTime}
+          .isCurrentUser=${this.isCurrentUser}
           @edit-rating=${(e: CustomEvent) => this.handleEditRating(e)}
           @remove-rating=${(e: CustomEvent) => this.handleRemoveRating(e)}
         ></rating-item>
@@ -496,15 +528,20 @@ export class UserRatings extends LitElement {
     if (this.loading)
       return html` <div class="loading">Loading ratings data...</div> `;
 
+    const isCurrentUser = this.account === this.blockchainService.account;
+
     return html`
       <section class="user-ratings">
-        <total-stake-card .totalStake=${this.totalStake}></total-stake-card>
+        <total-stake-card 
+          .totalStake=${this.totalStake}
+          .isCurrentUser=${isCurrentUser}
+        ></total-stake-card>
         <ratings-list
           .ratings=${this.userRatings}
+          .isCurrentUser=${isCurrentUser}
           @edit-rating=${this.editRating}
           @remove-rating=${this.removeRating}
         ></ratings-list>
-        <trust-insights></trust-insights>
       </section>
     `;
   }
@@ -528,7 +565,7 @@ export class UserRatings extends LitElement {
 
       if (
         !confirm(
-          `Are you sure you want to remove your rating for ${rating.uri}? You will get back ${formatETH(rating.stake)}.`,
+          `Are you sure you want to remove your rating for ${uri}? You will get back ${formatETH(rating.stake)}.`,
         )
       ) {
         return;

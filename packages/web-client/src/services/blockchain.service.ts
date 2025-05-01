@@ -325,6 +325,34 @@ export namespace Contract {
         return ratings;
       }
 
+      /**
+       * Get a map of all unique raters to their ratings
+       * @returns Map where keys are rater addresses and values are arrays of ratings
+       */
+      getRaters(): Map<Address, Rating[]> {
+        // Build a map of rater address to array of their ratings
+        const raterMap = new Map<Address, Rating[]>();
+
+        // Process all ratings and group by rater address
+        this.state.ratings.forEach((raterToRating, uriHash) => {
+          raterToRating.forEach((rating, rater) => {
+            const raterLower = rater.toLowerCase() as Address;
+
+            if (!raterMap.has(raterLower)) {
+              raterMap.set(raterLower, []);
+            }
+
+            raterMap.get(raterLower)?.push({
+              ...rating,
+              rater: raterLower,
+              uriHash,
+            });
+          });
+        });
+
+        return raterMap;
+      }
+
       async submitRating(uri: string, score: number, stake: bigint) {
         if (!this.account) throw new MissingAccountError();
 
