@@ -82,10 +82,10 @@ The high-level goal is to allow users to explore the contract state in general. 
 1. Get rid of the existing tabs except for Dashboard. Those UI elements will be used later but not at top-level. (DONE)
 2. Add these tabs: "People", "URIs", "Ratings", "About". (DONE)
 3. The "People" tab will be a searchable/filterable list of accounts. Each account will show its number of ratings and other interesting stats. If the list is unfiltered then the current user's account is always at top. Each account will lead to another page, which is basically what the "My Ratings" page is now, only for arbitrary users. (DONE)
-4. The "URIs" tab will be searchable/filterable list of URIs. Each URI will show its average rating and other interesting stats. If the list is unfiltered then the current user's rated URIs are shown. Each URI will lead to another page.
-5. That URI-specific page has the URI's general information at top, followed by the user's rating (or a button to add a rating - it expands into a form), followed by the rest of the ratings.
-6. The "Ratings" tab will be searchable/filtering list of Ratings. Each Rating will show its URI, stars, expiry, and any other facts. If the list is unfiltered then just show the user's ratings.
-7. The "About" tab will have information about me, the github link, etc. It will be a simple LitElement that merely emits static html.
+4. The "URIs" tab will be searchable/filterable list of URIs. Each URI will show its average rating and other interesting stats. If the list is unfiltered then the current user's rated URIs are shown. Each URI will lead to another page. (DONE)
+5. That URI-specific page has the URI's general information at top, followed by the user's rating (or a button to add a rating - it expands into a form), followed by the rest of the ratings. (DONE)
+6. The "Ratings" tab will be searchable/filtering list of Ratings. Each Rating will show its URI, stars, expiry, and any other facts. If the list is unfiltered then just show the user's ratings. (DONE)
+7. The "About" tab will have information about me, the github link, etc. It will be a simple LitElement that merely emits static html. (DONE)
 
 ### Important Notes
 - Do not implement pagination - it is for later

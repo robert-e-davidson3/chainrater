@@ -8,6 +8,7 @@ import "./rating-form.js";
 import "./about-page.js";
 import "./people-page.js";
 import "./uris-page.js";
+import "./ratings-page.js";
 import {
   BlockchainService,
   type Rating,
@@ -72,13 +73,16 @@ export class ChainRater extends LitElement {
         return html`<app-dashboard></app-dashboard>`;
 
       case "people":
-        return html`<people-page></people-page>`;
+        return html`<people-page .selectedAccount=${this.selectedAccount}></people-page>`;
 
       case "uris":
-        return html`<uris-page></uris-page>`;
+        return html`<uris-page 
+          .selectedUriHash=${this.selectedUriHash}
+          .selectedUri=${this.selectedUri}
+        ></uris-page>`;
 
       case "ratings":
-        return html`<div>Ratings tab coming soon</div>`;
+        return html`<ratings-page></ratings-page>`;
 
       case "about":
         return html`<about-page></about-page>`;
@@ -121,27 +125,33 @@ export class ChainRater extends LitElement {
     this.account = "";
   }
   
+  @state() private selectedUriHash: string | null = null;
+  @state() private selectedUri: string | null = null;
+  @state() private selectedAccount: string | null = null;
+  
   connectedCallback() {
     super.connectedCallback();
-    // Listen for view-uri events to navigate to URI details
-    this.addEventListener("view-uri", this.handleViewURI as EventListener);
+    // Listen for navigation events
+    this.addEventListener("view-uri", this.handleViewURI as EventListenerOrEventListenerObject);
+    this.addEventListener("view-account", this.handleViewAccount as EventListenerOrEventListenerObject);
   }
   
   disconnectedCallback() {
     super.disconnectedCallback();
-    this.removeEventListener("view-uri", this.handleViewURI as EventListener);
+    this.removeEventListener("view-uri", this.handleViewURI as EventListenerOrEventListenerObject);
+    this.removeEventListener("view-account", this.handleViewAccount as EventListenerOrEventListenerObject);
   }
   
   handleViewURI(e: CustomEvent) {
     const { uri, uriHash } = e.detail;
     this.activeTab = "uris";
-    
-    // Use a setTimeout to ensure the uris-page component is loaded first
-    setTimeout(() => {
-      const urisPage = this.renderRoot.querySelector("uris-page");
-      if (urisPage) {
-        (urisPage as any).viewURI(uriHash, uri);
-      }
-    }, 0);
+    this.selectedUriHash = uriHash;
+    this.selectedUri = uri;
+  }
+  
+  handleViewAccount(e: CustomEvent) {
+    const { account } = e.detail;
+    this.activeTab = "people";
+    this.selectedAccount = account;
   }
 }

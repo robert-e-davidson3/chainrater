@@ -1,5 +1,5 @@
 import { LitElement, html, css } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement, state, property } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import {
   BlockchainService,
@@ -29,7 +29,9 @@ export class PeoplePage extends LitElement {
   @state() private accounts: AccountSummary[] = [];
   @state() private searchInput = "";
   @state() private loading = true;
-  @state() private selectedAccount: Address | null = null;
+  @state() private _selectedAccount: Address | null = null;
+  
+  @property({ type: String }) selectedAccount: string | null = null;
 
   @consume({ context: blockchainServiceContext })
   _blockchainService?: BlockchainService;
@@ -187,8 +189,16 @@ export class PeoplePage extends LitElement {
     this.listeners.clear();
   }
 
+  updated(changedProperties: Map<string, unknown>) {
+    super.updated(changedProperties);
+    
+    if (changedProperties.has('selectedAccount') && this.selectedAccount) {
+      this._selectedAccount = this.selectedAccount as Address;
+    }
+  }
+
   render() {
-    if (this.selectedAccount) {
+    if (this._selectedAccount) {
       return this.renderAccountDetail();
     }
 
@@ -271,7 +281,7 @@ export class PeoplePage extends LitElement {
           ← Back to People
         </button>
         
-        <user-ratings .account=${this.selectedAccount}></user-ratings>
+        <user-ratings .account=${this._selectedAccount}></user-ratings>
       </div>
     `;
   }
@@ -282,11 +292,20 @@ export class PeoplePage extends LitElement {
   }
 
   private viewAccount(address: Address) {
-    this.selectedAccount = address;
+    this._selectedAccount = address;
+    
+    // Dispatch event to update URL or history if needed
+    this.dispatchEvent(
+      new CustomEvent("view-account", {
+        detail: { account: address },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
   private backToList() {
-    this.selectedAccount = null;
+    this._selectedAccount = null;
   }
 
   private async loadAccounts() {
