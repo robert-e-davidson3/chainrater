@@ -1,11 +1,11 @@
-import { LitElement, html, css } from "lit";
+import { LitElement, html, css, nothing } from "lit";
 import { customElement, state, property } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import {
   BlockchainService,
   type ExistingRating,
 } from "../services/blockchain.service.js";
-import { MissingContextError } from "../utils/blockchain.utils.js";
+import { hashURI, MissingContextError } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { URIValidator } from "../utils/uri.utils.js";
 import { ListenerManager } from "../utils/listener.utils.js";
@@ -29,7 +29,7 @@ export class UrisPage extends LitElement {
   @state() private searchInput = "";
   @state() private loading = true;
   @state() private showRatingForm = false;
-  
+
   @property({ type: String }) selectedUriHash: string | null = null;
   @property({ type: String }) selectedUri: string | null = null;
 
@@ -202,15 +202,15 @@ export class UrisPage extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    
+
     this.listeners.add(this.blockchainService, "connected", () => {
       this.loadURIs();
     });
-    
+
     this.listeners.add(this.blockchainService, "disconnected", () => {
       this.unloadURIs();
     });
-    
+
     this.loadURIs();
   }
 
@@ -219,18 +219,22 @@ export class UrisPage extends LitElement {
     this.listeners.clear();
   }
 
-
   render() {
     if (this.selectedUriHash && this.selectedUri) {
       return this.renderURIDetail();
     }
 
     const urisList = this.renderURIsList();
-    
+    const rateSearchButton = URIValidator.validate(this.searchInput)
+      ? html`<button @click=${() => this.rateSearchUri()}>
+          Rate This Item
+        </button>`
+      : nothing;
+
     return html`
       <section class="uris-container">
         <h2>URIs</h2>
-        
+
         <div class="search-container">
           <input
             type="text"
@@ -238,6 +242,7 @@ export class UrisPage extends LitElement {
             .value=${this.searchInput}
             @input=${this.handleSearchInputChange}
           />
+          ${rateSearchButton}
         </div>
 
         ${this.loading
@@ -258,30 +263,39 @@ export class UrisPage extends LitElement {
 
     // Filter URIs based on search input
     const filteredURIs = this.searchInput
-      ? this.uris.filter(item => 
-          item.uri.toLowerCase().includes(this.searchInput.toLowerCase()))
+      ? this.uris.filter((item) =>
+          item.uri.toLowerCase().includes(this.searchInput.toLowerCase()),
+        )
       : this.uris;
 
-    const rows = filteredURIs.map(item => html`
-      <tr 
-        class="uri-row ${item.hasCurrentUserRated ? 'current-user-rated' : ''}"
-        @click=${() => this.viewURI(item.uriHash, item.uri)}
-      >
-        <td class="uri-item">
-          <span class="uri-schema">${URIValidator.getSchema(item.uri)}://</span>
-          ${URIValidator.getDisplayName(item.uri)}
-        </td>
-        <td>${item.ratingCount}</td>
-        <td><span class="avg-score">${item.averageScore.toFixed(1)} ★</span></td>
-        <td>
-          <stake-time-display 
-            .stake=${item.totalStake}
-            .aggregateMode=${true}
-            .showDetails=${true}
-          ></stake-time-display>
-        </td>
-      </tr>
-    `);
+    const rows = filteredURIs.map(
+      (item) => html`
+        <tr
+          class="uri-row ${item.hasCurrentUserRated
+            ? "current-user-rated"
+            : ""}"
+          @click=${() => this.viewURI(item.uriHash, item.uri)}
+        >
+          <td class="uri-item">
+            <span class="uri-schema"
+              >${URIValidator.getSchema(item.uri)}://</span
+            >
+            ${URIValidator.getDisplayName(item.uri)}
+          </td>
+          <td>${item.ratingCount}</td>
+          <td>
+            <span class="avg-score">${item.averageScore.toFixed(1)} ★</span>
+          </td>
+          <td>
+            <stake-time-display
+              .stake=${item.totalStake}
+              .aggregateMode=${true}
+              .showDetails=${true}
+            ></stake-time-display>
+          </td>
+        </tr>
+      `,
+    );
 
     return html`
       <div class="uris-list">
@@ -294,7 +308,9 @@ export class UrisPage extends LitElement {
               <th>Total Stake</th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody>
+            ${rows}
+          </tbody>
         </table>
       </div>
     `;
@@ -306,55 +322,66 @@ export class UrisPage extends LitElement {
     if (this.showRatingForm) {
       return html`
         <div>
-          <button class="back-button" @click=${() => this.showRatingForm = false}>
+          <button
+            class="back-button"
+            @click=${() => (this.showRatingForm = false)}
+          >
             ← Back to URI Details
           </button>
-          
+
           <rating-form .uriInput=${this.selectedUri}></rating-form>
         </div>
       `;
     }
 
-    const uriItem = this.uris.find(u => u.uriHash === this.selectedUriHash);
-    
+    const uriItem = this.uris.find((u) => u.uriHash === this.selectedUriHash);
+
     return html`
       <div>
         <button class="back-button" @click=${this.backToList}>
           ← Back to URIs
         </button>
-        
+
         <div class="uri-detail">
           <div class="uri-detail-header">
             <h2>
-              <span class="uri-schema">${URIValidator.getSchema(this.selectedUri)}://</span>
+              <span class="uri-schema"
+                >${URIValidator.getSchema(this.selectedUri)}://</span
+              >
               ${URIValidator.getDisplayName(this.selectedUri)}
             </h2>
-            
+
             <div class="uri-detail-actions">
               <button @click=${this.rateURI}>Rate This Item</button>
             </div>
           </div>
-          
+
           <div class="uri-stats">
             <p>
-              <strong>Average Rating:</strong> 
-              <span class="avg-score">${uriItem?.averageScore.toFixed(1) ?? 0} ★</span>
+              <strong>Average Rating:</strong>
+              <span class="avg-score"
+                >${uriItem?.averageScore.toFixed(1) ?? 0} ★</span
+              >
               from ${uriItem?.ratingCount ?? 0} ratings
             </p>
             <p>
               <strong>Total Stake:</strong>
-              <stake-time-display 
+              <stake-time-display
                 .stake=${uriItem?.totalStake ?? 0n}
                 .aggregateMode=${true}
                 .showDetails=${true}
               ></stake-time-display>
             </p>
-            ${uriItem?.variance ? html`
-              <p><strong>Variance:</strong> ${uriItem.variance.toFixed(2)}</p>
-            ` : null}
+            ${uriItem?.variance
+              ? html`
+                  <p>
+                    <strong>Variance:</strong> ${uriItem.variance.toFixed(2)}
+                  </p>
+                `
+              : null}
           </div>
         </div>
-        
+
         <div class="ratings-container">
           <uri-ratings .uriHash=${this.selectedUriHash}></uri-ratings>
         </div>
@@ -371,7 +398,7 @@ export class UrisPage extends LitElement {
     this.selectedUriHash = uriHash;
     this.selectedUri = uri;
     this.showRatingForm = false;
-    
+
     // Dispatch event to update URL or history if needed
     this.dispatchEvent(
       new CustomEvent("view-uri", {
@@ -383,6 +410,19 @@ export class UrisPage extends LitElement {
   }
 
   private rateURI() {
+    this.showRatingForm = true;
+  }
+
+  private rateSearchUri() {
+    // Format the URI to ensure proper case for schema
+    const formattedUri = URIValidator.formatURI(this.searchInput);
+
+    // Calculate the URI hash
+    const uriHash = hashURI(formattedUri);
+
+    // Set as selected URI and show the rating form
+    this.selectedUri = formattedUri;
+    this.selectedUriHash = uriHash;
     this.showRatingForm = true;
   }
 
@@ -399,7 +439,7 @@ export class UrisPage extends LitElement {
       const ratings = this.blockchainService.ratings.getRatings({
         deleted: false,
       });
-      
+
       this.processURIs(ratings);
     } finally {
       this.loading = false;
@@ -424,13 +464,16 @@ export class UrisPage extends LitElement {
 
     const currentUserAddress = this.blockchainService.account?.toLowerCase();
     const uriItems: URIItem[] = [];
-    
+
     // Calculate stats for each URI
     for (const [uriHash, uriRatings] of ratingsByURI.entries()) {
       if (uriRatings.length === 0) continue;
 
       const uri = this.blockchainService.ratings.getUriFromHash(uriHash);
-      const totalStake = uriRatings.reduce((sum, r) => sum + r.stake, BigInt(0));
+      const totalStake = uriRatings.reduce(
+        (sum, r) => sum + r.stake,
+        BigInt(0),
+      );
       const ratingCount = uriRatings.length;
 
       // Calculate average score
@@ -446,10 +489,9 @@ export class UrisPage extends LitElement {
         ratingCount > 1 ? Math.sqrt(squaredDiffs / (ratingCount - 1)) : 0;
 
       // Check if current user has rated this URI
-      const hasCurrentUserRated = !!currentUserAddress && 
-        uriRatings.some(r => 
-          r.rater.toLowerCase() === currentUserAddress
-        );
+      const hasCurrentUserRated =
+        !!currentUserAddress &&
+        uriRatings.some((r) => r.rater.toLowerCase() === currentUserAddress);
 
       uriItems.push({
         uriHash,
@@ -461,7 +503,7 @@ export class UrisPage extends LitElement {
         hasCurrentUserRated,
       });
     }
-    
+
     // Sort: items rated by current user at top, then by rating count
     this.uris = uriItems.sort((a, b) => {
       if (a.hasCurrentUserRated && !b.hasCurrentUserRated) return -1;
