@@ -448,6 +448,7 @@ export class RatingsList extends LitElement {
 @customElement("user-ratings")
 export class UserRatings extends LitElement {
   @property({ type: String }) account: string = "";
+  @property({ type: String }) uriHash: string = "";
   @state() userRatings: ExistingRating[] = [];
   @state() totalStake = 0n;
   @state() loading = true;

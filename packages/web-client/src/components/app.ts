@@ -7,6 +7,7 @@ import "./user-ratings.js";
 import "./rating-form.js";
 import "./about-page.js";
 import "./people-page.js";
+import "./uris-page.js";
 import {
   BlockchainService,
   type Rating,
@@ -74,7 +75,7 @@ export class ChainRater extends LitElement {
         return html`<people-page></people-page>`;
 
       case "uris":
-        return html`<div>URIs tab coming soon</div>`;
+        return html`<uris-page></uris-page>`;
 
       case "ratings":
         return html`<div>Ratings tab coming soon</div>`;
@@ -118,5 +119,29 @@ export class ChainRater extends LitElement {
   handleWalletDisconnected() {
     this.isConnected = false;
     this.account = "";
+  }
+  
+  connectedCallback() {
+    super.connectedCallback();
+    // Listen for view-uri events to navigate to URI details
+    this.addEventListener("view-uri", this.handleViewURI as EventListener);
+  }
+  
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("view-uri", this.handleViewURI as EventListener);
+  }
+  
+  handleViewURI(e: CustomEvent) {
+    const { uri, uriHash } = e.detail;
+    this.activeTab = "uris";
+    
+    // Use a setTimeout to ensure the uris-page component is loaded first
+    setTimeout(() => {
+      const urisPage = this.renderRoot.querySelector("uris-page");
+      if (urisPage) {
+        (urisPage as any).viewURI(uriHash, uri);
+      }
+    }, 0);
   }
 }
