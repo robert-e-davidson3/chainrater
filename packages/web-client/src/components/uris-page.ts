@@ -28,8 +28,6 @@ export class UrisPage extends LitElement {
   @state() private uris: URIItem[] = [];
   @state() private searchInput = "";
   @state() private loading = true;
-  @state() private _selectedUriHash: string | null = null;
-  @state() private _selectedUri: string | null = null;
   @state() private showRatingForm = false;
   
   @property({ type: String }) selectedUriHash: string | null = null;
@@ -221,24 +219,9 @@ export class UrisPage extends LitElement {
     this.listeners.clear();
   }
 
-  updated(changedProperties: Map<string, unknown>) {
-    super.updated(changedProperties);
-    
-    if (
-      (changedProperties.has('selectedUriHash') && this.selectedUriHash) ||
-      (changedProperties.has('selectedUri') && this.selectedUri)
-    ) {
-      if (this.selectedUriHash) {
-        this._selectedUriHash = this.selectedUriHash;
-      }
-      if (this.selectedUri) {
-        this._selectedUri = this.selectedUri;
-      }
-    }
-  }
 
   render() {
-    if (this._selectedUriHash && this._selectedUri) {
+    if (this.selectedUriHash && this.selectedUri) {
       return this.renderURIDetail();
     }
 
@@ -318,7 +301,7 @@ export class UrisPage extends LitElement {
   }
 
   private renderURIDetail() {
-    if (!this._selectedUriHash || !this._selectedUri) return null;
+    if (!this.selectedUriHash || !this.selectedUri) return null;
 
     if (this.showRatingForm) {
       return html`
@@ -327,12 +310,12 @@ export class UrisPage extends LitElement {
             ← Back to URI Details
           </button>
           
-          <rating-form .uriInput=${this._selectedUri}></rating-form>
+          <rating-form .uriInput=${this.selectedUri}></rating-form>
         </div>
       `;
     }
 
-    const uriItem = this.uris.find(u => u.uriHash === this._selectedUriHash);
+    const uriItem = this.uris.find(u => u.uriHash === this.selectedUriHash);
     
     return html`
       <div>
@@ -343,8 +326,8 @@ export class UrisPage extends LitElement {
         <div class="uri-detail">
           <div class="uri-detail-header">
             <h2>
-              <span class="uri-schema">${URIValidator.getSchema(this._selectedUri)}://</span>
-              ${URIValidator.getDisplayName(this._selectedUri)}
+              <span class="uri-schema">${URIValidator.getSchema(this.selectedUri)}://</span>
+              ${URIValidator.getDisplayName(this.selectedUri)}
             </h2>
             
             <div class="uri-detail-actions">
@@ -373,7 +356,7 @@ export class UrisPage extends LitElement {
         </div>
         
         <div class="ratings-container">
-          <uri-ratings .uriHash=${this._selectedUriHash}></uri-ratings>
+          <uri-ratings .uriHash=${this.selectedUriHash}></uri-ratings>
         </div>
       </div>
     `;
@@ -385,8 +368,8 @@ export class UrisPage extends LitElement {
   }
 
   private viewURI(uriHash: string, uri: string) {
-    this._selectedUriHash = uriHash;
-    this._selectedUri = uri;
+    this.selectedUriHash = uriHash;
+    this.selectedUri = uri;
     this.showRatingForm = false;
     
     // Dispatch event to update URL or history if needed
@@ -404,8 +387,8 @@ export class UrisPage extends LitElement {
   }
 
   private backToList() {
-    this._selectedUriHash = null;
-    this._selectedUri = null;
+    this.selectedUriHash = null;
+    this.selectedUri = null;
     this.showRatingForm = false;
   }
 
