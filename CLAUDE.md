@@ -75,24 +75,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Makes code harder to reason about
   - Adds unnecessary verbosity
 
-## UI/UX Restructuring Plan
-The high-level goal is to allow users to explore the contract state in general. This is in contrast to how it works now, where they can only really explore the contract state as it relates to themselves.
+## Polishing
+The main functionality is there but there's plenty more to improve!
 
 ### Sub-goals
-1. Get rid of the existing tabs except for Dashboard. Those UI elements will be used later but not at top-level. (DONE)
-2. Add these tabs: "People", "URIs", "Ratings", "About". (DONE)
-3. The "People" tab will be a searchable/filterable list of accounts. Each account will show its number of ratings and other interesting stats. If the list is unfiltered then the current user's account is always at top. Each account will lead to another page, which is basically what the "My Ratings" page is now, only for arbitrary users. (DONE)
-4. The "URIs" tab will be searchable/filterable list of URIs. Each URI will show its average rating and other interesting stats. If the list is unfiltered then the current user's rated URIs are shown. Each URI will lead to another page. (DONE)
-5. That URI-specific page has the URI's general information at top, followed by the user's rating (or a button to add a rating - it expands into a form), followed by the rest of the ratings. (DONE)
-6. The "Ratings" tab will be searchable/filtering list of Ratings. Each Rating will show its URI, stars, expiry, and any other facts. If the list is unfiltered then just show the user's ratings. (DONE)
-7. The "About" tab will have information about me, the github link, etc. It will be a simple LitElement that merely emits static html. (DONE)
+1. When you submit a new rating via the URIs tab, afterwards it leaves you staring at an emptied form. If you press the URIs tab then nothing happens but it should bring you to a fresh URIs tab. Furthermore, instead of staring at an empty form it should bring you to a page for that Rating in particular but marked as "pending" until it's no longer pending. If you navigate away from that page then you shouldn't be bothered, also, in case the user doesn't care to see the result of their submission.
+2. There should be another tab for "Rate an Item" that is just the item rating form. Let the user fill it out as they please.
+3. If the user hovers over a shortened account name, including their own (top-left) then the full address should be shown in a hover.
+4. The layout is janky for some window sizes: the user's address is jammed up against "About" and the "Disconnect" (and probably Connect as well) button over a different background color from the rest of the navbar.
+5. Instead of a "Dashboard" tab named as such, the "ChainRater" in the top-left should work that way. But don't underline it when active.
+6. In the "Ratings" tab, the user should always be able to press a button to get a rating creation form.
+7. In the Ratings tab, there needs to be a filter for expiry: only expired, only non-expired, both. The most common use of this tab is likely to be finding expired ratings for quick cash... until someone writes a bot.
+8. The people tab also needs search functionality. Same dealie, basically: expiry and URI name. Then sort by rating etc.
 
 ### Important Notes
 - Do not implement pagination - it is for later
 - The tabs will always be at the top, so users can always go to top-level tabs
 - This app uses "URIs" that are NOT "URLs" - valid formats include "restaurant://", "website://", etc.
-- The details of each Rating will include the account that made the rating
-- This process will involve refinement as development progresses
 
 ## Future Considerations
 - **Indexing Service**: Current implementation queries blockchain events directly, which works for development but doesn't scale. A dedicated indexing service (like The Graph) will be needed for production to efficiently query historical data.
