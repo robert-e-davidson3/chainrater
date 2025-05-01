@@ -14,19 +14,31 @@ import {
   type Rating,
 } from "../services/blockchain.service.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
+import { Address } from "viem";
+
+// Define the tab state type as a discriminated union
+type TabState =
+  | { type: "dashboard" }
+  | { type: "people"; selectedAccount?: Address }
+  | { type: "uris"; uri?: string; uriHash?: string }
+  | { type: "ratings" }
+  | { type: "about" }
+  | { type: "myratings"; account?: Address }
+  | { type: "rate"; ratingToEdit?: Rating; prefilledURI?: string };
 
 @customElement("chain-rater")
 export class ChainRater extends LitElement {
   @provide({ context: blockchainServiceContext })
   blockchainService: BlockchainService = new BlockchainService();
 
-  @property({ type: String })
-  activeTab = "dashboard";
   @property({ type: Boolean }) isConnected = false;
   @property({ type: String }) account = "";
 
-  @state() private ratingToEdit: Rating | null = null;
-  @state() private prefilledURI = "";
+  @state() private tabState: TabState = { type: "dashboard" };
+
+  get activeTab(): string {
+    return this.tabState.type;
+  }
 
   static styles = css`
     :host {
@@ -68,17 +80,19 @@ export class ChainRater extends LitElement {
   }
 
   renderActiveTab() {
-    switch (this.activeTab) {
+    switch (this.tabState.type) {
       case "dashboard":
         return html`<app-dashboard></app-dashboard>`;
 
       case "people":
-        return html`<people-page .selectedAccount=${this.selectedAccount}></people-page>`;
+        return html`<people-page
+          .selectedAccount=${this.tabState.selectedAccount}
+        ></people-page>`;
 
       case "uris":
-        return html`<uris-page 
-          .selectedUriHash=${this.selectedUriHash}
-          .selectedUri=${this.selectedUri}
+        return html`<uris-page
+          .selectedUriHash=${this.tabState.uriHash}
+          .selectedUri=${this.tabState.uri}
         ></uris-page>`;
 
       case "ratings":
@@ -89,14 +103,16 @@ export class ChainRater extends LitElement {
 
       // Keep these for reference, but they're no longer accessible from the UI
       case "myratings":
-        return html` <user-ratings .account=${this.account}></user-ratings> `;
+        return html`<user-ratings
+          .account=${this.tabState.account}
+        ></user-ratings>`;
 
       case "rate":
         return html`
           <rating-form
-            .isEditing=${!!this.ratingToEdit}
-            .existingRating=${this.ratingToEdit}
-            .uriInput=${this.prefilledURI}
+            .isEditing=${!!this.tabState.ratingToEdit}
+            .existingRating=${this.tabState.ratingToEdit}
+            .uriInput=${this.tabState.prefilledURI}
           ></rating-form>
         `;
 
@@ -106,12 +122,33 @@ export class ChainRater extends LitElement {
   }
 
   handleTabChange(e: CustomEvent) {
-    this.activeTab = e.detail.tab;
+    const tab = e.detail.tab;
 
-    // Reset editing state when switching away from rate tab
-    if (this.activeTab !== "rate") {
-      this.ratingToEdit = null;
-      this.prefilledURI = "";
+    // Create a new tab state based on the selected tab
+    switch (tab) {
+      case "dashboard":
+        this.tabState = { type: "dashboard" };
+        break;
+      case "people":
+        this.tabState = { type: "people" };
+        break;
+      case "uris":
+        this.tabState = { type: "uris" };
+        break;
+      case "ratings":
+        this.tabState = { type: "ratings" };
+        break;
+      case "about":
+        this.tabState = { type: "about" };
+        break;
+      case "myratings":
+        this.tabState = { type: "myratings", account: this.account as Address };
+        break;
+      case "rate":
+        this.tabState = { type: "rate" };
+        break;
+      default:
+        this.tabState = { type: "dashboard" };
     }
   }
 
@@ -124,34 +161,46 @@ export class ChainRater extends LitElement {
     this.isConnected = false;
     this.account = "";
   }
-  
-  @state() private selectedUriHash: string | null = null;
-  @state() private selectedUri: string | null = null;
-  @state() private selectedAccount: string | null = null;
-  
+
   connectedCallback() {
     super.connectedCallback();
     // Listen for navigation events
-    this.addEventListener("view-uri", this.handleViewURI as EventListenerOrEventListenerObject);
-    this.addEventListener("view-account", this.handleViewAccount as EventListenerOrEventListenerObject);
+    this.addEventListener(
+      "view-uri",
+      this.handleViewURI as EventListenerOrEventListenerObject,
+    );
+    this.addEventListener(
+      "view-account",
+      this.handleViewAccount as EventListenerOrEventListenerObject,
+    );
   }
-  
+
   disconnectedCallback() {
     super.disconnectedCallback();
-    this.removeEventListener("view-uri", this.handleViewURI as EventListenerOrEventListenerObject);
-    this.removeEventListener("view-account", this.handleViewAccount as EventListenerOrEventListenerObject);
+    this.removeEventListener(
+      "view-uri",
+      this.handleViewURI as EventListenerOrEventListenerObject,
+    );
+    this.removeEventListener(
+      "view-account",
+      this.handleViewAccount as EventListenerOrEventListenerObject,
+    );
   }
-  
+
   handleViewURI(e: CustomEvent) {
     const { uri, uriHash } = e.detail;
-    this.activeTab = "uris";
-    this.selectedUriHash = uriHash;
-    this.selectedUri = uri;
+    this.tabState = {
+      type: "uris",
+      uri,
+      uriHash,
+    };
   }
-  
+
   handleViewAccount(e: CustomEvent) {
     const { account } = e.detail;
-    this.activeTab = "people";
-    this.selectedAccount = account;
+    this.tabState = {
+      type: "people",
+      selectedAccount: account as Address,
+    };
   }
 }
