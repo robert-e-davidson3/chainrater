@@ -228,11 +228,13 @@ export class RatingItem extends LitElement {
         <button class="secondary" @click=${this.handleRemove}>Remove</button>
       </div>
     ` : null;
+    
+    const uriDisplay = this.uri || this.rating.uriHash.substring(0, 10) + "...";
 
     return html`
       <li class="${listClass}">
         <div class="uri">
-          ${this.uri || this.rating.uriHash.substring(0, 10) + "..."}
+          <a href="#" @click=${this.handleUriClick}>${uriDisplay}</a>
         </div>
         <div class="rating-stars">
           <rating-stars .score=${this.rating.score}></rating-stars>
@@ -266,6 +268,22 @@ export class RatingItem extends LitElement {
     this.dispatchEvent(
       new CustomEvent("remove-rating", {
         detail: { rating: this.rating },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+  
+  handleUriClick(e: Event) {
+    e.preventDefault();
+    
+    // Dispatch view-uri event to navigate to URI details
+    this.dispatchEvent(
+      new CustomEvent("view-uri", {
+        detail: { 
+          uri: this.uri, 
+          uriHash: this.rating.uriHash 
+        },
         bubbles: true,
         composed: true,
       }),
@@ -372,14 +390,14 @@ export class RatingsList extends LitElement {
 
   render() {
     return html`
-      <h3>Your Ratings</h3>
+      <h3>${this.isCurrentUser ? "Your Ratings" : "Ratings"}</h3>
       ${this.renderList()}
     `;
   }
 
   renderList() {
     if (!this.ratings || this.ratings.length === 0) {
-      return html`<p class="empty-list">You haven't rated any items yet</p>`;
+      return html`<p class="empty-list">${this.isCurrentUser ? "You haven't rated any items yet" : "This user hasn't rated any items yet"}</p>`;
     }
 
     if (!this.blockchainService.ready)
@@ -530,6 +548,7 @@ export class UserRatings extends LitElement {
       return html` <div class="loading">Loading ratings data...</div> `;
 
     const isCurrentUser = this.account === this.blockchainService.account;
+    const title = isCurrentUser ? "Your Ratings" : "User Ratings";
 
     return html`
       <section class="user-ratings">
