@@ -144,21 +144,22 @@ export class HeaderNav extends LitElement {
           >
         </nav>
 
-        <div class="wallet">
-          ${this.isConnected
-            ? html`<span class="address"
-                  >${shortenAddress(this.accountAddress)}</span
-                >
-                <button @click=${this.disconnect}>Disconnect</button>`
-            : html`<button
-                @click=${this.connect}
-                ?disabled=${this.isConnecting}
-              >
-                ${this.isConnecting ? "Connecting..." : "Connect Wallet"}
-              </button>`}
-        </div>
+        <div class="wallet">${this.renderWalletButton()}</div>
       </header>
     `;
+  }
+
+  renderWalletButton() {
+    if (this.isConnected) {
+      return html`<span class="address"
+          >${shortenAddress(this.accountAddress)}
+        </span>
+        <button @click=${this.disconnect}>Disconnect</button>`;
+    } else if (this.isConnecting) {
+      return html`<button disabled>Connecting...</button>`;
+    } else {
+      return html`<button @click=${this.connect}>Connect Wallet</button>`;
+    }
   }
 
   async connect() {
@@ -203,8 +204,6 @@ export class HeaderNav extends LitElement {
 
   switchTab(tab: string) {
     this.activeTab = tab;
-
-    // Dispatch tab change event
     this.dispatchEvent(
       new CustomEvent("tab-changed", {
         detail: { tab },

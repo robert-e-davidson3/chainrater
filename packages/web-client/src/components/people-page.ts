@@ -29,9 +29,8 @@ export class PeoplePage extends LitElement {
   @state() private accounts: AccountSummary[] = [];
   @state() private searchInput = "";
   @state() private loading = true;
-  @state() private _selectedAccount: Address | null = null;
-  
-  @property({ type: String }) selectedAccount: string | null = null;
+
+  @property({ type: String }) selectedAccount: Address | null = null;
 
   @consume({ context: blockchainServiceContext })
   _blockchainService?: BlockchainService;
@@ -172,15 +171,15 @@ export class PeoplePage extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    
+
     this.listeners.add(this.blockchainService, "connected", () => {
       this.loadAccounts();
     });
-    
+
     this.listeners.add(this.blockchainService, "disconnected", () => {
       this.unloadAccounts();
     });
-    
+
     this.loadAccounts();
   }
 
@@ -189,25 +188,15 @@ export class PeoplePage extends LitElement {
     this.listeners.clear();
   }
 
-  updated(changedProperties: Map<string, unknown>) {
-    super.updated(changedProperties);
-    
-    if (changedProperties.has('selectedAccount') && this.selectedAccount) {
-      this._selectedAccount = this.selectedAccount as Address;
-    }
-  }
-
   render() {
-    if (this._selectedAccount) {
-      return this.renderAccountDetail();
-    }
+    if (this.selectedAccount) return this.renderAccountDetail();
 
     const accountsList = this.renderAccountsList();
-    
+
     return html`
       <section class="people-container">
         <h2>People</h2>
-        
+
         <div class="search-container">
           <input
             type="text"
@@ -235,27 +224,34 @@ export class PeoplePage extends LitElement {
 
     // Filter accounts based on search input
     const filteredAccounts = this.searchInput
-      ? this.accounts.filter(account => 
-          account.address.toLowerCase().includes(this.searchInput.toLowerCase()))
+      ? this.accounts.filter((account) =>
+          account.address
+            .toLowerCase()
+            .includes(this.searchInput.toLowerCase()),
+        )
       : this.accounts;
 
-    const rows = filteredAccounts.map(account => html`
-      <tr 
-        class="account-row ${account.isCurrentUser ? 'current-user' : ''}"
-        @click=${() => this.viewAccount(account.address)}
-      >
-        <td class="account-address">${shortenAddress(account.address)}</td>
-        <td>${account.ratingCount}</td>
-        <td><span class="avg-score">${account.averageScore.toFixed(1)} ★</span></td>
-        <td>
-          <stake-time-display 
-            .stake=${account.totalStake}
-            .aggregateMode=${true}
-            .showDetails=${true}
-          ></stake-time-display>
-        </td>
-      </tr>
-    `);
+    const rows = filteredAccounts.map(
+      (account) => html`
+        <tr
+          class="account-row ${account.isCurrentUser ? "current-user" : ""}"
+          @click=${() => this.viewAccount(account.address)}
+        >
+          <td class="account-address">${shortenAddress(account.address)}</td>
+          <td>${account.ratingCount}</td>
+          <td>
+            <span class="avg-score">${account.averageScore.toFixed(1)} ★</span>
+          </td>
+          <td>
+            <stake-time-display
+              .stake=${account.totalStake}
+              .aggregateMode=${true}
+              .showDetails=${true}
+            ></stake-time-display>
+          </td>
+        </tr>
+      `,
+    );
 
     return html`
       <div class="accounts-list">
@@ -268,7 +264,9 @@ export class PeoplePage extends LitElement {
               <th>Total Stake</th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody>
+            ${rows}
+          </tbody>
         </table>
       </div>
     `;
@@ -280,8 +278,8 @@ export class PeoplePage extends LitElement {
         <button class="back-button" @click=${this.backToList}>
           ← Back to People
         </button>
-        
-        <user-ratings .account=${this._selectedAccount}></user-ratings>
+
+        <user-ratings .account=${this.selectedAccount}></user-ratings>
       </div>
     `;
   }
@@ -292,9 +290,6 @@ export class PeoplePage extends LitElement {
   }
 
   private viewAccount(address: Address) {
-    this._selectedAccount = address;
-    
-    // Dispatch event to update URL or history if needed
     this.dispatchEvent(
       new CustomEvent("view-account", {
         detail: { account: address },
@@ -305,7 +300,13 @@ export class PeoplePage extends LitElement {
   }
 
   private backToList() {
-    this._selectedAccount = null;
+    this.dispatchEvent(
+      new CustomEvent("view-account", {
+        detail: { account: null },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
   private async loadAccounts() {
@@ -327,20 +328,23 @@ export class PeoplePage extends LitElement {
   private processRaters(raters: Map<Address, Rating[]>) {
     const currentUserAddress = this.blockchainService.account?.toLowerCase();
     const accountSummaries: AccountSummary[] = [];
-    
+
     raters.forEach((ratings, address) => {
-      const validRatings = ratings.filter(r => !r.deleted);
-      
-      const totalStake = validRatings.reduce((sum, rating) => 
-        sum + (rating as any).stake, 0n);
-        
-      const totalScore = validRatings.reduce((sum, rating) => 
-        sum + (rating as any).score, 0);
-        
-      const averageScore = validRatings.length > 0 
-        ? totalScore / validRatings.length 
-        : 0;
-        
+      const validRatings = ratings.filter((r) => !r.deleted);
+
+      const totalStake = validRatings.reduce(
+        (sum, rating) => sum + (rating as any).stake,
+        0n,
+      );
+
+      const totalScore = validRatings.reduce(
+        (sum, rating) => sum + (rating as any).score,
+        0,
+      );
+
+      const averageScore =
+        validRatings.length > 0 ? totalScore / validRatings.length : 0;
+
       const isCurrentUser = currentUserAddress === address.toLowerCase();
 
       accountSummaries.push({
@@ -351,7 +355,7 @@ export class PeoplePage extends LitElement {
         isCurrentUser,
       });
     });
-    
+
     // Sort: current user at top, then by rating count
     this.accounts = accountSummaries.sort((a, b) => {
       if (a.isCurrentUser) return -1;
