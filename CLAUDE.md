@@ -80,7 +80,7 @@ The main functionality is there but there's plenty more to improve!
 
 ### Sub-goals
 1. When you submit a new rating via the URIs tab, afterwards it leaves you staring at an emptied form. If you press the URIs tab then nothing happens but it should bring you to a fresh URIs tab. Furthermore, instead of staring at an empty form it should bring you to a page for that Rating in particular but marked as "pending" until it's no longer pending. If you navigate away from that page then you shouldn't be bothered, also, in case the user doesn't care to see the result of their submission.
-2. There should be another tab for "Rate an Item" that is just the item rating form. Let the user fill it out as they please.
+2. There should be another tab for "Rate an Item" that is just the item rating form. Let the user fill it out as they please. (DONE)
 3. If the user hovers over a shortened account name, including their own (top-left) then the full address should be shown in a hover.
 4. The layout is janky for some window sizes: the user's address is jammed up against "About" and the "Disconnect" (and probably Connect as well) button over a different background color from the rest of the navbar.
 5. Instead of a "Dashboard" tab named as such, the "ChainRater" in the top-left should work that way. But don't underline it when active.

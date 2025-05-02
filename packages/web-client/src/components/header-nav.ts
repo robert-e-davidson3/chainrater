@@ -138,6 +138,11 @@ export class HeaderNav extends LitElement {
             >Ratings</a
           >
           <a
+            class="${this.activeTab === "rate" ? "active" : ""}"
+            @click=${() => this.switchTab("rate")}
+            >Rate an Item</a
+          >
+          <a
             class="${this.activeTab === "about" ? "active" : ""}"
             @click=${() => this.switchTab("about")}
             >About</a

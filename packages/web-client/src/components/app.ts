@@ -112,7 +112,7 @@ export class ChainRater extends LitElement {
           <rating-form
             .isEditing=${!!this.tabState.ratingToEdit}
             .existingRating=${this.tabState.ratingToEdit}
-            .uriInput=${this.tabState.prefilledURI}
+            .uriInput=${this.tabState.prefilledURI ?? ""}
           ></rating-form>
         `;
 

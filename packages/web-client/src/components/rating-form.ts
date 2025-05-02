@@ -22,6 +22,7 @@ export class RatingForm extends LitElement {
 
   @state() private isSubmitting = false;
   @state() private errorMessage = "";
+  @state() private successMessage = "";
   @state() private showURIExamples = false;
 
   @consume({ context: blockchainServiceContext })
@@ -145,6 +146,17 @@ export class RatingForm extends LitElement {
       gap: 0.5rem;
     }
 
+    .success {
+      color: #27ae60;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background-color: rgba(39, 174, 96, 0.1);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
     .uri-examples {
       margin-top: 1rem;
       background-color: #f9f9f9;
@@ -252,6 +264,11 @@ export class RatingForm extends LitElement {
               <div class="error"><span>⚠️</span> ${this.errorMessage}</div>
             `
           : ""}
+        ${this.successMessage
+          ? html`
+              <div class="success"><span>✓</span> ${this.successMessage}</div>
+            `
+          : ""}
 
         <button @click=${this.submitRating} ?disabled=${this.isSubmitting}>
           ${this.isSubmitting
@@ -345,6 +362,7 @@ export class RatingForm extends LitElement {
 
     this.isSubmitting = true;
     this.errorMessage = "";
+    this.successMessage = "";
 
     try {
       // Calculate stake from duration
@@ -357,6 +375,12 @@ export class RatingForm extends LitElement {
         stake,
       );
 
+      // Show success message
+      this.successMessage = `Rating submitted successfully for "${this.uriInput}"!`;
+
+      // Store the URI that was rated for future reference
+      const ratedUri = this.uriInput;
+
       // Reset form if not editing
       if (!this.isEditing) {
         this.resetForm();
@@ -366,7 +390,7 @@ export class RatingForm extends LitElement {
       this.dispatchEvent(
         new CustomEvent("rating-submitted", {
           detail: {
-            uri: this.uriInput,
+            uri: ratedUri,
             score: this.scoreInput,
             stake,
             durationSeconds: this.durationSeconds,
@@ -399,6 +423,7 @@ export class RatingForm extends LitElement {
     this.scoreInput = 3;
     this.durationSeconds = MIN_DURATION_SECONDS;
     this.errorMessage = "";
+    this.successMessage = "";
     this.isEditing = false;
     this.existingRating = null;
   }

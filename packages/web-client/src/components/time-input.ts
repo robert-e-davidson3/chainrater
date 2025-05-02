@@ -4,7 +4,10 @@ import { consume } from "@lit/context";
 import { BlockchainService } from "../services/blockchain.service.js";
 import { formatETH } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
-import { SECONDS_IN_WEEK, MIN_DURATION_SECONDS } from "../utils/time-constants.js";
+import {
+  SECONDS_IN_WEEK,
+  MIN_DURATION_SECONDS,
+} from "../utils/time-constants.js";
 
 @customElement("time-input")
 export class TimeInput extends LitElement {
@@ -65,8 +68,10 @@ export class TimeInput extends LitElement {
         <input
           type="number"
           min="1"
+          step="1"
           .value=${this.getWeeksFromSeconds()}
           @input=${this.handleWeeksInput}
+          @keydown=${this.handleKeyDown}
           ?disabled=${this.disabled}
         />
         <span class="unit-label">weeks</span>
@@ -83,20 +88,57 @@ export class TimeInput extends LitElement {
 
   handleWeeksInput(e: Event) {
     const target = e.target as HTMLInputElement;
-    const weeks = Math.max(1, parseInt(target.value) || 1);
+    // Remove any decimal part from the input value
+    const integerValue = target.value.replace(".", "");
+    // Parse as integer, defaulting to 1 if parsing fails
+    const weeks = Math.max(1, parseInt(integerValue) || 1);
     const newSeconds = weeks * SECONDS_IN_WEEK;
-    
+
     if (this.value !== newSeconds) {
       this.value = newSeconds;
-      
+
       this.dispatchEvent(
         new CustomEvent("time-change", {
           detail: { seconds: this.value },
           bubbles: true,
           composed: true,
-        })
+        }),
       );
     }
+  }
+
+  handleKeyDown(e: KeyboardEvent) {
+    // Allow: numbers, backspace, delete, tab, escape, enter, home, end, arrow keys
+    const allowedKeys = [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "Backspace",
+      "Delete",
+      "Tab",
+      "Escape",
+      "Enter",
+      "Home",
+      "End",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+    ];
+
+    // Also allow control/cmd+key combinations for copy/paste/etc
+    if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key))
+      return;
+
+    // If the key isn't in our allowed list, prevent it
+    if (!allowedKeys.includes(e.key)) e.preventDefault();
   }
 
   calculateEquivalentEth(): string {
