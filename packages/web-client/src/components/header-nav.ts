@@ -18,11 +18,12 @@ export class HeaderNav extends LitElement {
     return this._blockchainService;
   }
 
-  @property({ type: Boolean })
+  @property({ type: Boolean, reflect: true })
   isConnected = false;
   @property({ type: String }) activeTab = "dashboard";
   @property({ type: String }) accountAddress = "";
   @state() private isConnecting = false;
+  @state() private isMobileMenuOpen = false;
 
   static styles = css`
     :host {
@@ -37,12 +38,14 @@ export class HeaderNav extends LitElement {
       padding: 1rem 2rem;
       background-color: #ffffff;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      position: relative;
     }
 
     .branding {
       font-size: 1.5rem;
       font-weight: bold;
       color: #3498db;
+      z-index: 2;
     }
 
     .product-name {
@@ -83,6 +86,7 @@ export class HeaderNav extends LitElement {
       display: flex;
       align-items: center;
       gap: 1rem;
+      z-index: 2;
     }
 
     .address {
@@ -120,6 +124,7 @@ export class HeaderNav extends LitElement {
       cursor: pointer;
       font-weight: 500;
       transition: background-color 0.2s;
+      white-space: nowrap;
     }
 
     button:hover {
@@ -130,6 +135,127 @@ export class HeaderNav extends LitElement {
       background-color: #95a5a6;
       cursor: not-allowed;
     }
+    
+    /* Hamburger menu button */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 30px;
+      height: 21px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      z-index: 10;
+    }
+    
+    .hamburger span {
+      display: block;
+      width: 30px;
+      height: 3px;
+      background-color: #333;
+      border-radius: 3px;
+      transition: all 0.3s ease;
+    }
+    
+    /* Mobile menu */
+    .mobile-menu {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: white;
+      padding: 5rem 2rem 2rem;
+      z-index: 1;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+    
+    .mobile-menu.open {
+      transform: translateX(0);
+    }
+    
+    .mobile-menu nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .mobile-menu nav a {
+      font-size: 1.2rem;
+      padding: 0.5rem 0;
+    }
+    
+    .mobile-menu .wallet {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .mobile-menu .wallet button {
+      margin-top: 1rem;
+      width: 100%;
+    }
+    
+    /* Hamburger open state */
+    .hamburger.open span:first-child {
+      transform: rotate(45deg) translate(6px, 6px);
+    }
+    
+    .hamburger.open span:nth-child(2) {
+      opacity: 0;
+    }
+    
+    .hamburger.open span:last-child {
+      transform: rotate(-45deg) translate(6px, -6px);
+    }
+    
+    /* Media queries for responsive design */
+    /* When user is connected, we need to switch to hamburger mode earlier */
+    :host([isconnected]) {
+      @media (max-width: 950px) {
+        header nav, 
+        header .wallet {
+          display: none;
+        }
+        
+        .hamburger {
+          display: flex;
+        }
+        
+        .mobile-menu {
+          display: block;
+        }
+        
+        header {
+          padding: 1rem;
+        }
+      }
+    }
+    
+    /* Standard breakpoint for disconnected state */
+    @media (max-width: 750px) {
+      header nav, 
+      header .wallet {
+        display: none;
+      }
+      
+      .hamburger {
+        display: flex;
+      }
+      
+      .mobile-menu {
+        display: block;
+      }
+      
+      header {
+        padding: 1rem;
+      }
+    }
   `;
 
   render() {
@@ -139,7 +265,7 @@ export class HeaderNav extends LitElement {
           <a
             class="product-name"
             href="/"
-            @click=${(e: CustomEvent) => {
+            @click=${(e: Event) => {
               e.preventDefault();
               this.switchTab("dashboard");
             }}
@@ -176,7 +302,51 @@ export class HeaderNav extends LitElement {
         </nav>
 
         <div class="wallet">${this.renderWalletButton()}</div>
+        
+        <!-- Hamburger menu button -->
+        <button 
+          class="hamburger ${this.isMobileMenuOpen ? 'open' : ''}"
+          @click=${this.toggleMobileMenu}
+          aria-label="Menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </header>
+      
+      <!-- Mobile menu -->
+      <div class="mobile-menu ${this.isMobileMenuOpen ? 'open' : ''}">
+        <nav>
+          <a
+            class="${this.activeTab === "people" ? "active" : ""}"
+            @click=${() => this.handleMobileNavClick("people")}
+            >People</a
+          >
+          <a
+            class="${this.activeTab === "uris" ? "active" : ""}"
+            @click=${() => this.handleMobileNavClick("uris")}
+            >URIs</a
+          >
+          <a
+            class="${this.activeTab === "ratings" ? "active" : ""}"
+            @click=${() => this.handleMobileNavClick("ratings")}
+            >Ratings</a
+          >
+          <a
+            class="${this.activeTab === "rate" ? "active" : ""}"
+            @click=${() => this.handleMobileNavClick("rate")}
+            >Rate an Item</a
+          >
+          <a
+            class="${this.activeTab === "about" ? "active" : ""}"
+            @click=${() => this.handleMobileNavClick("about")}
+            >About</a
+          >
+        </nav>
+        
+        <div class="wallet">${this.renderWalletButton()}</div>
+      </div>
     `;
   }
 
@@ -243,5 +413,28 @@ export class HeaderNav extends LitElement {
         composed: true,
       }),
     );
+  }
+  
+  /**
+   * Toggles the mobile menu open/closed
+   */
+  toggleMobileMenu() {
+    this.isMobileMenuOpen = !this.isMobileMenuOpen;
+    
+    // If opening, prevent scrolling on the body
+    if (this.isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  }
+  
+  /**
+   * Handles mobile navigation clicks - switches tab and closes the menu
+   */
+  handleMobileNavClick(tab: string) {
+    this.switchTab(tab);
+    this.isMobileMenuOpen = false;
+    document.body.style.overflow = '';
   }
 }

@@ -75,15 +75,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Makes code harder to reason about
   - Adds unnecessary verbosity
 
-## Polishing
-The main functionality is there but there's plenty more to improve!
-
-### Sub-goals
-1. When you submit a new rating via the URIs tab, afterwards it leaves you staring at an emptied form. If you press the URIs tab then nothing happens but it should bring you to a fresh URIs tab. Furthermore, instead of staring at an empty form it should bring you to a page for that Rating in particular but marked as "pending" until it's no longer pending. If you navigate away from that page then you shouldn't be bothered, also, in case the user doesn't care to see the result of their submission.
-4. The layout is janky for some window sizes: the user's address is jammed up against "About" and the "Disconnect" (and probably Connect as well) button over a different background color from the rest of the navbar.
-11. Back/Forward needs to work as expected. Once it does, remove all of the "Back to $x" buttons (ex: "Back to People"). (DONE)
-12. None of the tabs should throw errors if you click on them when the wallet isn't connected. The errors SHOULD NOT BE CAUGHT. Instead, there should be an alternative render when the blockchain service is not ready. This behavior is expected because I intentionally left this cleanup for later, but later is a-comin'. (DONE)
-
 ### Important Notes
 - Do not implement pagination - it is for later
 - The tabs will always be at the top, so users can always go to top-level tabs
