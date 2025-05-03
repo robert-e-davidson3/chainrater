@@ -29,6 +29,9 @@ export class UrisPage extends LitElement {
   @state() private searchInput = "";
   @state() private loading = true;
   @state() private showRatingForm = false;
+  @state() private sortBy: 'ratings' | 'stake' | 'score' | 'variance' = 'ratings';
+  @state() private sortDirection: 'asc' | 'desc' = 'desc';
+  @state() private ownerFilter: 'all' | 'yours' = 'all';
 
   @property({ type: String }) selectedUriHash: string | null = null;
   @property({ type: String }) selectedUri: string | null = null;
@@ -174,6 +177,80 @@ export class UrisPage extends LitElement {
       color: #f1c40f;
       font-weight: bold;
     }
+    
+    .filter-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .sort-filter, .owner-filter {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .filter-label {
+      font-weight: 500;
+      color: #666;
+      margin-right: 0.5rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .direction-button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-right: 0.5rem;
+    }
+    
+    .direction-button:hover {
+      background-color: #2980b9;
+    }
+    
+    .sort-options, .filter-options {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    
+    .sort-button, .filter-button {
+      background-color: #f5f5f5;
+      color: #666;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+    
+    .sort-button.active, .filter-button.active {
+      background-color: #3498db;
+      color: white;
+      border-color: #3498db;
+    }
 
     .uri-detail {
       background-color: #fff;
@@ -244,6 +321,67 @@ export class UrisPage extends LitElement {
           />
           ${rateSearchButton}
         </div>
+        
+        <div class="filter-controls">
+          <div class="sort-filter">
+            <span class="filter-label">Sort:</span>
+            <button 
+              class="direction-button"
+              @click=${this.toggleSortDirection}
+              title="${this.sortDirection === 'desc' ? 'Descending' : 'Ascending'}"
+            >
+              ${this.sortDirection === 'desc' ? '↓' : '↑'}
+            </button>
+            <div class="sort-options">
+              <button 
+                class="sort-button ${this.sortBy === 'ratings' ? 'active' : ''}"
+                @click=${() => this.setSortBy('ratings')}
+              >
+                ${this.sortDirection === 'desc' ? 'Most Ratings' : 'Fewest Ratings'}
+              </button>
+              <button 
+                class="sort-button ${this.sortBy === 'stake' ? 'active' : ''}"
+                @click=${() => this.setSortBy('stake')}
+              >
+                ${this.sortDirection === 'desc' ? 'Highest Stake' : 'Lowest Stake'}
+              </button>
+              <button 
+                class="sort-button ${this.sortBy === 'score' ? 'active' : ''}"
+                @click=${() => this.setSortBy('score')}
+              >
+                ${this.sortDirection === 'desc' ? 'Top Scores' : 'Bottom Scores'}
+              </button>
+              <button 
+                class="sort-button ${this.sortBy === 'variance' ? 'active' : ''}"
+                @click=${() => this.setSortBy('variance')}
+              >
+                ${this.sortDirection === 'desc' ? 'Most Controversial' : 'Least Controversial'}
+              </button>
+            </div>
+          </div>
+          
+          <div class="filter-row">
+            <div class="owner-filter">
+              <span class="filter-label">Show:</span>
+              <div class="filter-options">
+                <button 
+                  class="filter-button ${this.ownerFilter === 'all' ? 'active' : ''}"
+                  data-filter="all"
+                  @click=${() => this.setOwnerFilter('all')}
+                >
+                  All URIs
+                </button>
+                <button 
+                  class="filter-button ${this.ownerFilter === 'yours' ? 'active' : ''}"
+                  data-filter="yours"
+                  @click=${() => this.setOwnerFilter('yours')}
+                >
+                  Your Ratings
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         ${this.loading
           ? html`<div class="loading">Loading URIs data...</div>`
@@ -261,12 +399,8 @@ export class UrisPage extends LitElement {
       `;
     }
 
-    // Filter URIs based on search input
-    const filteredURIs = this.searchInput
-      ? this.uris.filter((item) =>
-          item.uri.toLowerCase().includes(this.searchInput.toLowerCase()),
-        )
-      : this.uris;
+    // Get filtered URIs based on filters
+    const filteredURIs = this.getFilteredURIs();
 
     const rows = filteredURIs.map(
       (item) => html`
@@ -393,6 +527,87 @@ export class UrisPage extends LitElement {
     const input = e.target as HTMLInputElement;
     this.searchInput = input.value;
   }
+  
+  private getFilteredURIs(): URIItem[] {
+    let filteredURIs = this.uris;
+    
+    // Apply search filter
+    if (this.searchInput) {
+      filteredURIs = filteredURIs.filter(item => 
+        item.uri.toLowerCase().includes(this.searchInput.toLowerCase())
+      );
+    }
+    
+    // Apply owner filter
+    if (this.ownerFilter === 'yours') {
+      filteredURIs = filteredURIs.filter(item => item.hasCurrentUserRated);
+    }
+    
+    // Apply sorting
+    filteredURIs = this.sortURIs(filteredURIs);
+    
+    return filteredURIs;
+  }
+  
+  private sortURIs(uris: URIItem[]): URIItem[] {
+    if (!uris.length) return uris;
+    
+    // Create a new array to hold the sorted URIs
+    let sortedURIs = [...uris];
+    
+    // Define the comparison function based on sortBy
+    let compare: (a: URIItem, b: URIItem) => number;
+    
+    switch (this.sortBy) {
+      case 'ratings':
+        // Sort by number of ratings
+        compare = (a, b) => a.ratingCount - b.ratingCount;
+        break;
+        
+      case 'stake':
+        // Sort by total stake
+        compare = (a, b) => {
+          return a.totalStake > b.totalStake ? 1 : a.totalStake < b.totalStake ? -1 : 0;
+        };
+        break;
+        
+      case 'score':
+        // Sort by average score
+        compare = (a, b) => a.averageScore - b.averageScore;
+        break;
+        
+      case 'variance':
+        // Sort by variance (most controversial)
+        compare = (a, b) => a.variance - b.variance;
+        break;
+        
+      default:
+        // Default to ratings count
+        compare = (a, b) => a.ratingCount - b.ratingCount;
+    }
+    
+    // Apply sort and handle direction
+    return sortedURIs.sort((a, b) => {
+      // If ascending, use the comparison function as-is
+      // If descending, negate the result to reverse the order
+      return this.sortDirection === 'asc' ? compare(a, b) : -compare(a, b);
+    });
+  }
+  
+  private setSortBy(sortType: 'ratings' | 'stake' | 'score' | 'variance') {
+    this.sortBy = sortType;
+    this.requestUpdate();
+  }
+  
+  private toggleSortDirection() {
+    this.sortDirection = this.sortDirection === 'desc' ? 'asc' : 'desc';
+    this.requestUpdate();
+  }
+  
+  private setOwnerFilter(filter: 'all' | 'yours') {
+    this.ownerFilter = filter;
+    this.requestUpdate();
+  }
 
   private viewURI(uriHash: string, uri: string) {
     this.selectedUriHash = uriHash;
@@ -504,11 +719,7 @@ export class UrisPage extends LitElement {
       });
     }
 
-    // Sort: items rated by current user at top, then by rating count
-    this.uris = uriItems.sort((a, b) => {
-      if (a.hasCurrentUserRated && !b.hasCurrentUserRated) return -1;
-      if (!a.hasCurrentUserRated && b.hasCurrentUserRated) return 1;
-      return b.ratingCount - a.ratingCount;
-    });
+    // Apply sorting using our sortURIs method
+    this.uris = this.sortURIs(uriItems);
   }
 }
