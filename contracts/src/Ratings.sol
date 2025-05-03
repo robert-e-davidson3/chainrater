@@ -113,7 +113,7 @@ contract Ratings {
         // If rating is stil valid then only the rater can remove it.
         if (
             !isOwnRating &&
-            rating.posted + (rating.stake / STAKE_PER_SECOND) > block.timestamp 
+            rating.posted + (rating.stake / STAKE_PER_SECOND) > block.timestamp
         ) {
             revert RatingIsStillValid(rating.posted, rating.stake);
         }

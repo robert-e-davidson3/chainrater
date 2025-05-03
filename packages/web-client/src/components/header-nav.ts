@@ -135,7 +135,7 @@ export class HeaderNav extends LitElement {
       background-color: #95a5a6;
       cursor: not-allowed;
     }
-    
+
     /* Hamburger menu button */
     .hamburger {
       display: none;
@@ -149,7 +149,7 @@ export class HeaderNav extends LitElement {
       padding: 0;
       z-index: 10;
     }
-    
+
     .hamburger span {
       display: block;
       width: 30px;
@@ -158,7 +158,7 @@ export class HeaderNav extends LitElement {
       border-radius: 3px;
       transition: all 0.3s ease;
     }
-    
+
     /* Mobile menu */
     .mobile-menu {
       display: none;
@@ -174,84 +174,84 @@ export class HeaderNav extends LitElement {
       transform: translateX(100%);
       transition: transform 0.3s ease;
     }
-    
+
     .mobile-menu.open {
       transform: translateX(0);
     }
-    
+
     .mobile-menu nav {
       display: flex;
       flex-direction: column;
       gap: 1rem;
       margin-bottom: 2rem;
     }
-    
+
     .mobile-menu nav a {
       font-size: 1.2rem;
       padding: 0.5rem 0;
     }
-    
+
     .mobile-menu .wallet {
       flex-direction: column;
       align-items: flex-start;
     }
-    
+
     .mobile-menu .wallet button {
       margin-top: 1rem;
       width: 100%;
     }
-    
+
     /* Hamburger open state */
     .hamburger.open span:first-child {
       transform: rotate(45deg) translate(6px, 6px);
     }
-    
+
     .hamburger.open span:nth-child(2) {
       opacity: 0;
     }
-    
+
     .hamburger.open span:last-child {
       transform: rotate(-45deg) translate(6px, -6px);
     }
-    
+
     /* Media queries for responsive design */
     /* When user is connected, we need to switch to hamburger mode earlier */
     :host([isconnected]) {
       @media (max-width: 950px) {
-        header nav, 
+        header nav,
         header .wallet {
           display: none;
         }
-        
+
         .hamburger {
           display: flex;
         }
-        
+
         .mobile-menu {
           display: block;
         }
-        
+
         header {
           padding: 1rem;
         }
       }
     }
-    
+
     /* Standard breakpoint for disconnected state */
     @media (max-width: 750px) {
-      header nav, 
+      header nav,
       header .wallet {
         display: none;
       }
-      
+
       .hamburger {
         display: flex;
       }
-      
+
       .mobile-menu {
         display: block;
       }
-      
+
       header {
         padding: 1rem;
       }
@@ -302,10 +302,10 @@ export class HeaderNav extends LitElement {
         </nav>
 
         <div class="wallet">${this.renderWalletButton()}</div>
-        
+
         <!-- Hamburger menu button -->
-        <button 
-          class="hamburger ${this.isMobileMenuOpen ? 'open' : ''}"
+        <button
+          class="hamburger ${this.isMobileMenuOpen ? "open" : ""}"
           @click=${this.toggleMobileMenu}
           aria-label="Menu"
         >
@@ -314,9 +314,9 @@ export class HeaderNav extends LitElement {
           <span></span>
         </button>
       </header>
-      
+
       <!-- Mobile menu -->
-      <div class="mobile-menu ${this.isMobileMenuOpen ? 'open' : ''}">
+      <div class="mobile-menu ${this.isMobileMenuOpen ? "open" : ""}">
         <nav>
           <a
             class="${this.activeTab === "people" ? "active" : ""}"
@@ -344,7 +344,7 @@ export class HeaderNav extends LitElement {
             >About</a
           >
         </nav>
-        
+
         <div class="wallet">${this.renderWalletButton()}</div>
       </div>
     `;
@@ -414,27 +414,27 @@ export class HeaderNav extends LitElement {
       }),
     );
   }
-  
+
   /**
    * Toggles the mobile menu open/closed
    */
   toggleMobileMenu() {
     this.isMobileMenuOpen = !this.isMobileMenuOpen;
-    
+
     // If opening, prevent scrolling on the body
     if (this.isMobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
   }
-  
+
   /**
    * Handles mobile navigation clicks - switches tab and closes the menu
    */
   handleMobileNavClick(tab: string) {
     this.switchTab(tab);
     this.isMobileMenuOpen = false;
-    document.body.style.overflow = '';
+    document.body.style.overflow = "";
   }
 }

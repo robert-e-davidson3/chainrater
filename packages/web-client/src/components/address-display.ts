@@ -26,7 +26,7 @@ export class AddressDisplay extends LitElement {
       color: #3498db;
       cursor: pointer;
     }
-    
+
     :host(:hover) {
       text-decoration: underline;
     }
@@ -118,10 +118,10 @@ export class AddressDisplay extends LitElement {
   handleTruncatedEvent(e: CustomEvent) {
     this.isShortened = e.detail.truncated;
   }
-  
+
   handleAddressClick(e: Event) {
     e.stopPropagation(); // Prevent event from bubbling up
-    
+
     if (this.address) {
       // Dispatch view-account event to navigate to account details
       this.dispatchEvent(
@@ -129,7 +129,7 @@ export class AddressDisplay extends LitElement {
           detail: { account: this.address },
           bubbles: true,
           composed: true,
-        })
+        }),
       );
     }
   }

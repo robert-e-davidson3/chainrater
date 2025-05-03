@@ -35,12 +35,12 @@ export const ratingItemStyles: CSSResult = css`
   .uri {
     font-weight: 500;
   }
-  
+
   .uri a {
     color: #3498db;
     text-decoration: none;
   }
-  
+
   .uri a:hover {
     text-decoration: underline;
   }

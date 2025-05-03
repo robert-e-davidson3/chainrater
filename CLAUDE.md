@@ -69,27 +69,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Error Handling
 - Preference for custom error classes when throwing errors
-- Avoid try-catch blocks that simply re-throw wrapped errors because:
-  - Stack traces already show error origin
-  - Wrapping adds little value
-  - Makes code harder to reason about
-  - Adds unnecessary verbosity
-
-### Important Notes
-- Do not implement pagination - it is for later
-- The tabs will always be at the top, so users can always go to top-level tabs
-- This app uses "URIs" that are NOT "URLs" - valid formats include "restaurant://", "website://", etc.
+- Never use try-catch blocks that simply re-throw wrapped errors.
 
 ## Future Considerations
 - **Indexing Service**: Current implementation queries blockchain events directly, which works for development but doesn't scale. A dedicated indexing service (like The Graph) will be needed for production to efficiently query historical data.
-- **URI Hash Storage Strategy**: The current system uses keccak256 hashes of URIs stored on-chain. A more robust approach would involve IPFS for content addressing, particularly for structured metadata about ratings.
-- **Trust Graph**: Work has started but is shelved because it's out of scope for an MVP. But it does need to exist eventually for the product to make sense.
-- **Working Dashboard**: The dashboard now pulls data from the blockchain and displays ratings with different sorting methods.
-- **Search**: Search does not work at all right now.
-- **Simulation**: Simulate txs to give user feedback and to reduce the chance of bad txs getting sent.
-- **Staking Input Tweaks**: Instead of entering in a number to stake, users should enter in a time for the review to be up. AND it should start at the minimum (aka 1 week). The user should see both how long the review will last AND how much weight it will have. IF necessary then use steps of 16 wei (or whatever in the contract) to ensure the stake is valid.
+- **Trust Graph**: Shelved because it's out of scope for MVP but would make ChainRater unique.
+- **Pagination**: Out of scope for MVP but needed for scaling.
+- **Account Naming**: Use smart contract for giving names to accounts. Maybe ENS, maybe a custom contract that also uses timing-from-staking.
 
 ## Common Gotchas & Troubleshooting
 - **Event Querying**: Use `publicClient.getContractEvents()` instead of `getContract(...).getEvents()` which doesn't return a list of events as expected.
 - **Wallet Nonce Issues**: Accounts used by the PopulateWithTestData script will have transaction history unknown to MetaMask/Brave Wallet. This causes nonce mismatches when the wallet tries to use these accounts (it starts at too low a nonce). Use fresh accounts in the wallet that weren't used by the script.
 - **Contract Interaction Failures**: If contract interactions fail silently, check that the ABI matches the deployed contract exactly.
+- **URI vs URL**: ChainRater users rate pseudo-URIs (Uniform Resource Identifiers) not URLs. I-vs-L.

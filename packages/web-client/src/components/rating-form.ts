@@ -254,8 +254,8 @@ export class RatingForm extends LitElement {
             @time-change=${this.handleTimeChange}
           ></time-input>
           <div class="helper-text">
-            Minimum duration is 1 week. Longer durations require more ETH 
-            and give your rating more weight.
+            Minimum duration is 1 week. Longer durations require more ETH and
+            give your rating more weight.
           </div>
         </div>
 

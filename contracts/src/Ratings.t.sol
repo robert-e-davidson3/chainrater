@@ -46,11 +46,17 @@ contract RatingTest is Test {
             "UriRevealed topic[0]"
         );
         assertEq(entries[0].topics[1], testUriHash, "UriRevealed topic[1]");
-        assertEq(abi.decode(entries[0].data, (string)), testUri,"UriRevealed data");
+        assertEq(
+            abi.decode(entries[0].data, (string)),
+            testUri,
+            "UriRevealed data"
+        );
 
         assertEq(
             entries[1].topics[0],
-            keccak256("RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"),
+            keccak256(
+                "RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"
+            ),
             "entries[1].topics[0]"
         );
 

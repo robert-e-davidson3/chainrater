@@ -76,9 +76,9 @@ export class TotalStakeCard extends LitElement {
 
   render() {
     return html`
-      <h2>${this.isCurrentUser ? 'Your' : 'Total'} Stake</h2>
+      <h2>${this.isCurrentUser ? "Your" : "Total"} Stake</h2>
       <div class="stake-value">
-        <stake-time-display 
+        <stake-time-display
           class="inherit-color"
           .stake=${this.totalStake}
           .aggregateMode=${true}
@@ -222,14 +222,18 @@ export class RatingItem extends LitElement {
   }
 
   render() {
-    const listClass = `${this.getExpirationClass()} ${this.isCurrentUser ? 'with-actions' : 'no-actions'}`;
-    const actions = this.isCurrentUser ? html`
-      <div class="actions">
-        <button @click=${this.handleEdit}>Edit</button>
-        <button class="secondary" @click=${this.handleRemove}>Remove</button>
-      </div>
-    ` : null;
-    
+    const listClass = `${this.getExpirationClass()} ${this.isCurrentUser ? "with-actions" : "no-actions"}`;
+    const actions = this.isCurrentUser
+      ? html`
+          <div class="actions">
+            <button @click=${this.handleEdit}>Edit</button>
+            <button class="secondary" @click=${this.handleRemove}>
+              Remove
+            </button>
+          </div>
+        `
+      : null;
+
     const uriDisplay = this.uri || this.rating.uriHash.substring(0, 10) + "...";
 
     return html`
@@ -241,7 +245,7 @@ export class RatingItem extends LitElement {
           <rating-stars .score=${this.rating.score}></rating-stars>
         </div>
         <div class="stake">
-          <stake-time-display 
+          <stake-time-display
             .stake=${this.rating.stake}
             .aggregateMode=${true}
             .showDetails=${true}
@@ -274,16 +278,16 @@ export class RatingItem extends LitElement {
       }),
     );
   }
-  
+
   handleUriClick(e: Event) {
     e.preventDefault();
-    
+
     // Dispatch view-uri event to navigate to URI details
     this.dispatchEvent(
       new CustomEvent("view-uri", {
-        detail: { 
-          uri: this.uri, 
-          uriHash: this.rating.uriHash 
+        detail: {
+          uri: this.uri,
+          uriHash: this.rating.uriHash,
         },
         bubbles: true,
         composed: true,
@@ -398,7 +402,11 @@ export class RatingsList extends LitElement {
 
   renderList() {
     if (!this.ratings || this.ratings.length === 0) {
-      return html`<p class="empty-list">${this.isCurrentUser ? "You haven't rated any items yet" : "This user hasn't rated any items yet"}</p>`;
+      return html`<p class="empty-list">
+        ${this.isCurrentUser
+          ? "You haven't rated any items yet"
+          : "This user hasn't rated any items yet"}
+      </p>`;
     }
 
     if (!this.blockchainService.ready)
@@ -553,7 +561,7 @@ export class UserRatings extends LitElement {
 
     return html`
       <section class="user-ratings">
-        <total-stake-card 
+        <total-stake-card
           .totalStake=${this.totalStake}
           .isCurrentUser=${isCurrentUser}
         ></total-stake-card>
