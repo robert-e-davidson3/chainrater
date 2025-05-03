@@ -282,7 +282,6 @@ export class Dashboard extends LitElement {
       const ratings = this.blockchainService.ratings.getRatings({
         deleted: false,
       });
-      console.log(ratings);
 
       this.tvl = ratings.reduce((sum, rating) => sum + rating.stake, 0n);
 
