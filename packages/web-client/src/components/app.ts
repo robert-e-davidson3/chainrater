@@ -213,15 +213,6 @@ export class ChainRater extends LitElement {
   }
 
   /**
-   * Updates tab state and pushes to browser history
-   */
-  private updateTabState(newState: TabState) {
-    this.tabState = newState;
-    const url = this.createUrlFromState(newState);
-    window.history.pushState({ tabState: newState }, "", url);
-  }
-
-  /**
    * Handles browser back/forward navigation
    */
   private handlePopState(event: PopStateEvent) {
@@ -232,6 +223,15 @@ export class ChainRater extends LitElement {
       // Default to dashboard if no state in history
       this.tabState = { type: "dashboard" };
     }
+  }
+
+  /**
+   * Updates tab state and pushes to browser history
+   */
+  private updateTabState(newState: TabState) {
+    this.tabState = newState;
+    const url = this.createUrlFromState(newState);
+    window.history.pushState({ tabState: newState }, "", url);
   }
 
   /**

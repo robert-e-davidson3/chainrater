@@ -5,11 +5,7 @@ import {
   BlockchainService,
   type ExistingRating,
 } from "../services/blockchain.service.js";
-import {
-  formatETH,
-  shortenAddress,
-  MissingContextError,
-} from "../utils/blockchain.utils.js";
+import { formatETH, MissingContextError } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { ListenerManager } from "../utils/listener.utils.js";
 import "./stake-time-display.js";
@@ -197,7 +193,7 @@ export class Dashboard extends LitElement {
 
       return html`
         <li>
-          <a href="#" @click=${() => this.viewItem(uri ?? "", item.uriHash)}>
+          <a @click=${() => this.viewItem(uri ?? "", item.uriHash)}>
             <uri-display .uri=${uri}></uri-display>
           </a>
           ${valueDisplay}
@@ -233,8 +229,6 @@ export class Dashboard extends LitElement {
   }
 
   viewItem(uri: string, uriHash: string) {
-    console.log("Dashboard: viewItem called with", { uri, uriHash });
-    // Dispatch event to switch to rate tab with this URI
     this.dispatchEvent(
       new CustomEvent("view-uri", {
         detail: { uri, uriHash },
