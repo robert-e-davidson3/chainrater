@@ -28,6 +28,7 @@ export class RatingsPage extends LitElement {
   @state() private searchInput = "";
   @state() private loading = true;
   @state() private sortBy: 'recent' | 'stake' | 'score' = 'recent';
+  @state() private expiryFilter: 'all' | 'expired' | 'active' = 'all';
 
   @consume({ context: blockchainServiceContext })
   _blockchainService?: BlockchainService;
@@ -200,13 +201,35 @@ export class RatingsPage extends LitElement {
       font-weight: bold;
     }
 
-    .sort-options {
+    .filter-controls {
       display: flex;
+      flex-direction: column;
       gap: 1rem;
       margin-bottom: 1rem;
     }
+    
+    .sort-options, .filter-options {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    
+    .filter-label {
+      font-weight: 500;
+      color: #666;
+      margin-right: 0.5rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .expiry-filter {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
 
-    .sort-button {
+    .sort-button, .filter-button {
       background-color: #f5f5f5;
       color: #666;
       border: 1px solid #ddd;
@@ -214,12 +237,23 @@ export class RatingsPage extends LitElement {
       padding: 0.5rem 1rem;
       cursor: pointer;
       transition: all 0.2s;
+      font-size: 0.9rem;
     }
 
-    .sort-button.active {
+    .sort-button.active, .filter-button.active {
       background-color: #3498db;
       color: white;
       border-color: #3498db;
+    }
+    
+    .filter-button.active[data-filter="expired"] {
+      background-color: #e74c3c;
+      border-color: #e74c3c;
+    }
+    
+    .filter-button.active[data-filter="active"] {
+      background-color: #2ecc71;
+      border-color: #2ecc71;
     }
 
     .expiring-critical {
@@ -276,25 +310,54 @@ export class RatingsPage extends LitElement {
           </button>
         </div>
 
-        <div class="sort-options">
-          <button 
-            class="sort-button ${this.sortBy === 'recent' ? 'active' : ''}"
-            @click=${() => this.setSortBy('recent')}
-          >
-            Most Recent
-          </button>
-          <button 
-            class="sort-button ${this.sortBy === 'stake' ? 'active' : ''}"
-            @click=${() => this.setSortBy('stake')}
-          >
-            Highest Stake
-          </button>
-          <button 
-            class="sort-button ${this.sortBy === 'score' ? 'active' : ''}"
-            @click=${() => this.setSortBy('score')}
-          >
-            Top Scores
-          </button>
+        <div class="filter-controls">
+          <div class="sort-options">
+            <button 
+              class="sort-button ${this.sortBy === 'recent' ? 'active' : ''}"
+              @click=${() => this.setSortBy('recent')}
+            >
+              Most Recent
+            </button>
+            <button 
+              class="sort-button ${this.sortBy === 'stake' ? 'active' : ''}"
+              @click=${() => this.setSortBy('stake')}
+            >
+              Highest Stake
+            </button>
+            <button 
+              class="sort-button ${this.sortBy === 'score' ? 'active' : ''}"
+              @click=${() => this.setSortBy('score')}
+            >
+              Top Scores
+            </button>
+          </div>
+          
+          <div class="expiry-filter">
+            <span class="filter-label">Show:</span>
+            <div class="filter-options">
+              <button 
+                class="filter-button ${this.expiryFilter === 'all' ? 'active' : ''}"
+                data-filter="all"
+                @click=${() => this.setExpiryFilter('all')}
+              >
+                All Ratings
+              </button>
+              <button 
+                class="filter-button ${this.expiryFilter === 'active' ? 'active' : ''}"
+                data-filter="active"
+                @click=${() => this.setExpiryFilter('active')}
+              >
+                Active Only
+              </button>
+              <button 
+                class="filter-button ${this.expiryFilter === 'expired' ? 'active' : ''}"
+                data-filter="expired"
+                @click=${() => this.setExpiryFilter('expired')}
+              >
+                Expired Only
+              </button>
+            </div>
+          </div>
         </div>
 
         ${this.loading
@@ -313,12 +376,8 @@ export class RatingsPage extends LitElement {
       `;
     }
 
-    // Filter ratings based on search input
-    const filteredRatings = this.searchInput
-      ? this.ratings.filter(rating => 
-          rating.uri.toLowerCase().includes(this.searchInput.toLowerCase()) ||
-          rating.rater.toLowerCase().includes(this.searchInput.toLowerCase()))
-      : this.ratings;
+    // Get filtered ratings based on search input and expiry filter
+    const filteredRatings = this.getFilteredRatings();
 
     const rows = filteredRatings.map(rating => {
       const expirationClass = this.getExpirationClass(rating.expirationTime);
@@ -390,6 +449,11 @@ export class RatingsPage extends LitElement {
     this.sortBy = sortType;
     this.sortRatings();
   }
+  
+  private setExpiryFilter(filter: 'all' | 'expired' | 'active') {
+    this.expiryFilter = filter;
+    this.requestUpdate();
+  }
 
   private handleUriClick(e: Event, uriHash: string, uri: string) {
     e.preventDefault();
@@ -443,6 +507,29 @@ export class RatingsPage extends LitElement {
       return "expiring-warning";
     }
     return "";
+  }
+  
+  private getFilteredRatings(): RatingItem[] {
+    let filteredRatings = this.ratings;
+    
+    // Apply search filter
+    if (this.searchInput) {
+      filteredRatings = filteredRatings.filter(rating => 
+        rating.uri.toLowerCase().includes(this.searchInput.toLowerCase()) ||
+        rating.rater.toLowerCase().includes(this.searchInput.toLowerCase())
+      );
+    }
+    
+    // Apply expiry filter
+    if (this.expiryFilter !== 'all') {
+      const now = Date.now();
+      filteredRatings = filteredRatings.filter(rating => {
+        const isExpired = rating.expirationTime.getTime() <= now;
+        return this.expiryFilter === 'expired' ? isExpired : !isExpired;
+      });
+    }
+    
+    return filteredRatings;
   }
 
   private async loadRatings() {
