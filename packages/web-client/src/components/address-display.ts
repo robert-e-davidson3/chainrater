@@ -14,6 +14,7 @@ export class AddressDisplay extends LitElement {
   @property({ type: String }) address = "";
   @property({ type: String }) displayName = "";
   @property({ type: Boolean }) visualize = false;
+  @property({ type: Boolean }) truncate = true;
 
   @state() private isShortened = false;
 
@@ -94,12 +95,14 @@ export class AddressDisplay extends LitElement {
     const displayText = this.displayName || this.address;
     const ellipsisPosition = this.displayName ? "end" : "middle";
 
+    const chars = this.truncate ? 20 : 1000;
+
     return html`
       <truncate-text
         .text=${displayText}
         .ellipsisPosition=${ellipsisPosition}
-        .minChars=${20}
-        .maxChars=${20}
+        .minChars=${chars}
+        .maxChars=${chars}
         @truncated=${this.handleTruncatedEvent}
       ></truncate-text>
       ${tooltipContent}

@@ -5,10 +5,7 @@ import {
   BlockchainService,
   type Rating,
 } from "../services/blockchain.service.js";
-import {
-  formatETH,
-  MissingContextError,
-} from "../utils/blockchain.utils.js";
+import { formatETH, MissingContextError } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { Address } from "viem";
 import { ListenerManager } from "../utils/listener.utils.js";
@@ -153,7 +150,7 @@ export class PeoplePage extends LitElement {
       position: relative;
       cursor: pointer;
     }
-    
+
     .account-address:hover::after {
       content: attr(data-full-address);
       position: absolute;
@@ -178,6 +175,29 @@ export class PeoplePage extends LitElement {
 
     .back-button {
       margin-bottom: 1rem;
+    }
+
+    .account-header {
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+
+    .account-header h2 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      color: #333;
+    }
+
+    .account-info {
+      font-size: 1.2rem;
+      color: #3498db;
+    }
+
+    .account-info address-display {
+      font-size: 1.2rem;
     }
 
     /* Star rating display */
@@ -255,7 +275,9 @@ export class PeoplePage extends LitElement {
           class="account-row ${account.isCurrentUser ? "current-user" : ""}"
           @click=${() => this.viewAccount(account.address)}
         >
-          <td class="account-address"><address-display .address=${account.address}></address-display></td>
+          <td class="account-address">
+            <address-display .address=${account.address}></address-display>
+          </td>
           <td>${account.ratingCount}</td>
           <td>
             <span class="avg-score">${account.averageScore.toFixed(1)} ★</span>
@@ -291,11 +313,26 @@ export class PeoplePage extends LitElement {
   }
 
   private renderAccountDetail() {
+    const isCurrentUser =
+      this.selectedAccount?.toLowerCase() ===
+      this.blockchainService.account?.toLowerCase();
+
     return html`
       <div>
         <button class="back-button" @click=${this.backToList}>
           ← Back to People
         </button>
+
+        <div class="account-header">
+          <h2>${isCurrentUser ? "Your Account" : "Account Details"}</h2>
+          <div class="account-info">
+            <address-display
+              .address=${this.selectedAccount || ""}
+              .truncate=${false}
+              .visualize=${true}
+            ></address-display>
+          </div>
+        </div>
 
         <user-ratings .account=${this.selectedAccount}></user-ratings>
       </div>
