@@ -27,8 +27,9 @@ export class RatingsPage extends LitElement {
   @state() private ratings: RatingItem[] = [];
   @state() private searchInput = "";
   @state() private loading = true;
-  @state() private sortBy: 'recent' | 'stake' | 'score' = 'recent';
+  @state() private sortBy: 'recent' | 'stake' | 'score' | 'expiry' = 'recent';
   @state() private expiryFilter: 'all' | 'expired' | 'active' = 'all';
+  @state() private ownerFilter: 'all' | 'yours' = 'yours';
 
   @consume({ context: blockchainServiceContext })
   _blockchainService?: BlockchainService;
@@ -222,7 +223,14 @@ export class RatingsPage extends LitElement {
       align-items: center;
     }
     
-    .expiry-filter {
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .expiry-filter, .owner-filter {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
@@ -330,32 +338,60 @@ export class RatingsPage extends LitElement {
             >
               Top Scores
             </button>
+            <button 
+              class="sort-button ${this.sortBy === 'expiry' ? 'active' : ''}"
+              @click=${() => this.setSortBy('expiry')}
+            >
+              Soonest Expiry
+            </button>
           </div>
           
-          <div class="expiry-filter">
-            <span class="filter-label">Show:</span>
-            <div class="filter-options">
-              <button 
-                class="filter-button ${this.expiryFilter === 'all' ? 'active' : ''}"
-                data-filter="all"
-                @click=${() => this.setExpiryFilter('all')}
-              >
-                All Ratings
-              </button>
-              <button 
-                class="filter-button ${this.expiryFilter === 'active' ? 'active' : ''}"
-                data-filter="active"
-                @click=${() => this.setExpiryFilter('active')}
-              >
-                Active Only
-              </button>
-              <button 
-                class="filter-button ${this.expiryFilter === 'expired' ? 'active' : ''}"
-                data-filter="expired"
-                @click=${() => this.setExpiryFilter('expired')}
-              >
-                Expired Only
-              </button>
+          <div class="filter-row">
+            <div class="owner-filter">
+              <span class="filter-label">Owner:</span>
+              <div class="filter-options">
+                <button 
+                  class="filter-button ${this.ownerFilter === 'yours' ? 'active' : ''}"
+                  data-filter="yours"
+                  @click=${() => this.setOwnerFilter('yours')}
+                >
+                  Your Ratings
+                </button>
+                <button 
+                  class="filter-button ${this.ownerFilter === 'all' ? 'active' : ''}"
+                  data-filter="all"
+                  @click=${() => this.setOwnerFilter('all')}
+                >
+                  All Ratings
+                </button>
+              </div>
+            </div>
+            
+            <div class="expiry-filter">
+              <span class="filter-label">Status:</span>
+              <div class="filter-options">
+                <button 
+                  class="filter-button ${this.expiryFilter === 'all' ? 'active' : ''}"
+                  data-filter="all"
+                  @click=${() => this.setExpiryFilter('all')}
+                >
+                  All Status
+                </button>
+                <button 
+                  class="filter-button ${this.expiryFilter === 'active' ? 'active' : ''}"
+                  data-filter="active"
+                  @click=${() => this.setExpiryFilter('active')}
+                >
+                  Active Only
+                </button>
+                <button 
+                  class="filter-button ${this.expiryFilter === 'expired' ? 'active' : ''}"
+                  data-filter="expired"
+                  @click=${() => this.setExpiryFilter('expired')}
+                >
+                  Expired Only
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -445,13 +481,18 @@ export class RatingsPage extends LitElement {
     // This could be expanded to sort by specific columns if needed
   }
 
-  private setSortBy(sortType: 'recent' | 'stake' | 'score') {
+  private setSortBy(sortType: 'recent' | 'stake' | 'score' | 'expiry') {
     this.sortBy = sortType;
     this.sortRatings();
   }
   
   private setExpiryFilter(filter: 'all' | 'expired' | 'active') {
     this.expiryFilter = filter;
+    this.requestUpdate();
+  }
+  
+  private setOwnerFilter(filter: 'all' | 'yours') {
+    this.ownerFilter = filter;
     this.requestUpdate();
   }
 
@@ -529,6 +570,11 @@ export class RatingsPage extends LitElement {
       });
     }
     
+    // Apply owner filter
+    if (this.ownerFilter === 'yours') {
+      filteredRatings = filteredRatings.filter(rating => rating.isCurrentUser);
+    }
+    
     return filteredRatings;
   }
 
@@ -575,14 +621,15 @@ export class RatingsPage extends LitElement {
           b.score - a.score
         );
         break;
+        
+      case 'expiry':
+        // Sort by expiration time (soonest first)
+        this.ratings = [...this.ratings].sort((a, b) => 
+          a.expirationTime.getTime() - b.expirationTime.getTime()
+        );
+        break;
     }
     
-    // Always keep current user's ratings at the top within each sort group
-    this.ratings = [...this.ratings].sort((a, b) => {
-      if (a.isCurrentUser && !b.isCurrentUser) return -1;
-      if (!a.isCurrentUser && b.isCurrentUser) return 1;
-      return 0;
-    });
   }
 
   private processRatings(ratings: ExistingRating[]) {
