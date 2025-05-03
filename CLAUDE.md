@@ -80,15 +80,7 @@ The main functionality is there but there's plenty more to improve!
 
 ### Sub-goals
 1. When you submit a new rating via the URIs tab, afterwards it leaves you staring at an emptied form. If you press the URIs tab then nothing happens but it should bring you to a fresh URIs tab. Furthermore, instead of staring at an empty form it should bring you to a page for that Rating in particular but marked as "pending" until it's no longer pending. If you navigate away from that page then you shouldn't be bothered, also, in case the user doesn't care to see the result of their submission.
-2. There should be another tab for "Rate an Item" that is just the item rating form. Let the user fill it out as they please. (DONE)
-3. If the user hovers over a shortened account name, including their own (top-left) then the full address should be shown in a hover. (DONE)
 4. The layout is janky for some window sizes: the user's address is jammed up against "About" and the "Disconnect" (and probably Connect as well) button over a different background color from the rest of the navbar.
-5. Instead of a "Dashboard" tab named as such, the "ChainRater" in the top-left should work that way. But don't underline it when active. (DONE)
-6. In the "Ratings" tab, the user should always be able to press a button to get a rating creation form. (DONE)
-7. In the Ratings tab, there needs to be a filter for expiry: only expired, only non-expired, both. The most common use of this tab is likely to be finding expired ratings for quick cash... until someone writes a bot.
-8. The people tab also needs search functionality. Same dealie, basically: expiry and URI name. Then sort by rating etc. (DONE)
-9. People tab mode for a single account should display the account address and display name (if known), not just the total stake. (DONE)
-10. Clicking on address anywhere ought to bring you to the People tab under the single account mode. This includes in single-URI and Ratings. (DONE)
 11. Back/Forward needs to work as expected. Once it does, remove all of the "Back to $x" buttons (ex: "Back to People").
 
 ### Important Notes
