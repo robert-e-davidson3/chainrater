@@ -16,16 +16,6 @@ import {
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { Address } from "viem";
 
-// Define the tab state type as a discriminated union
-type TabState =
-  | { type: "dashboard" }
-  | { type: "people"; selectedAccount?: Address }
-  | { type: "uris"; uri?: string; uriHash?: string }
-  | { type: "ratings" }
-  | { type: "about" }
-  | { type: "myratings"; account?: Address }
-  | { type: "rate"; ratingToEdit?: Rating; prefilledURI?: string };
-
 @customElement("chain-rater")
 export class ChainRater extends LitElement {
   @provide({ context: blockchainServiceContext })
@@ -74,7 +64,14 @@ export class ChainRater extends LitElement {
       ></header-nav>
 
       <main>
-        <div class="container">${this.renderActiveTab()}</div>
+        <div
+          class="container"
+          @view-uri=${this.handleViewURI}
+          @view-account=${this.handleViewAccount}
+          @rate-item=${this.handleRateItem}
+        >
+          ${this.renderActiveTab()}
+        </div>
       </main>
     `;
   }
@@ -124,7 +121,6 @@ export class ChainRater extends LitElement {
   handleTabChange(e: CustomEvent) {
     const tab = e.detail.tab;
 
-    // Create a new tab state based on the selected tab
     switch (tab) {
       case "dashboard":
         this.tabState = { type: "dashboard" };
@@ -162,39 +158,6 @@ export class ChainRater extends LitElement {
     this.account = "";
   }
 
-  connectedCallback() {
-    super.connectedCallback();
-    // Listen for navigation events
-    this.addEventListener(
-      "view-uri",
-      this.handleViewURI as EventListenerOrEventListenerObject,
-    );
-    this.addEventListener(
-      "view-account",
-      this.handleViewAccount as EventListenerOrEventListenerObject,
-    );
-    this.addEventListener(
-      "rate-item",
-      this.handleRateItem as EventListenerOrEventListenerObject,
-    );
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.removeEventListener(
-      "view-uri",
-      this.handleViewURI as EventListenerOrEventListenerObject,
-    );
-    this.removeEventListener(
-      "view-account",
-      this.handleViewAccount as EventListenerOrEventListenerObject,
-    );
-    this.removeEventListener(
-      "rate-item",
-      this.handleRateItem as EventListenerOrEventListenerObject,
-    );
-  }
-
   handleViewURI(e: CustomEvent) {
     const { uri, uriHash } = e.detail;
     this.tabState = {
@@ -211,10 +174,19 @@ export class ChainRater extends LitElement {
       selectedAccount: account as Address,
     };
   }
-  
+
   handleRateItem() {
     this.tabState = {
-      type: "rate"
+      type: "rate",
     };
   }
 }
+
+type TabState =
+  | { type: "dashboard" }
+  | { type: "people"; selectedAccount?: Address }
+  | { type: "uris"; uri?: string; uriHash?: string }
+  | { type: "ratings" }
+  | { type: "about" }
+  | { type: "myratings"; account?: Address }
+  | { type: "rate"; ratingToEdit?: Rating; prefilledURI?: string };
