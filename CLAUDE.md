@@ -84,7 +84,7 @@ The main functionality is there but there's plenty more to improve!
 3. If the user hovers over a shortened account name, including their own (top-left) then the full address should be shown in a hover. (DONE)
 4. The layout is janky for some window sizes: the user's address is jammed up against "About" and the "Disconnect" (and probably Connect as well) button over a different background color from the rest of the navbar.
 5. Instead of a "Dashboard" tab named as such, the "ChainRater" in the top-left should work that way. But don't underline it when active. (DONE)
-6. In the "Ratings" tab, the user should always be able to press a button to get a rating creation form.
+6. In the "Ratings" tab, the user should always be able to press a button to get a rating creation form. (DONE)
 7. In the Ratings tab, there needs to be a filter for expiry: only expired, only non-expired, both. The most common use of this tab is likely to be finding expired ratings for quick cash... until someone writes a bot.
 8. The people tab also needs search functionality. Same dealie, basically: expiry and URI name. Then sort by rating etc.
 

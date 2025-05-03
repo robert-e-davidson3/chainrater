@@ -57,6 +57,17 @@ export class RatingsPage extends LitElement {
       display: flex;
       gap: 1rem;
       margin-bottom: 1rem;
+      align-items: center;
+    }
+    
+    .create-rating-button {
+      background-color: #2ecc71;
+      white-space: nowrap;
+      min-width: 120px;
+    }
+    
+    .create-rating-button:hover {
+      background-color: #27ae60;
     }
 
     input {
@@ -257,6 +268,12 @@ export class RatingsPage extends LitElement {
             .value=${this.searchInput}
             @input=${this.handleSearchInputChange}
           />
+          <button 
+            class="create-rating-button"
+            @click=${this.handleCreateRating}
+          >
+            Create Rating
+          </button>
         </div>
 
         <div class="sort-options">
@@ -396,6 +413,16 @@ export class RatingsPage extends LitElement {
     this.dispatchEvent(
       new CustomEvent("view-account", {
         detail: { account: raterAddress },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+  
+  private handleCreateRating() {
+    // Dispatch event to navigate to the rating form
+    this.dispatchEvent(
+      new CustomEvent("rate-item", {
         bubbles: true,
         composed: true,
       }),

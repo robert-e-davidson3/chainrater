@@ -173,6 +173,10 @@ export class ChainRater extends LitElement {
       "view-account",
       this.handleViewAccount as EventListenerOrEventListenerObject,
     );
+    this.addEventListener(
+      "rate-item",
+      this.handleRateItem as EventListenerOrEventListenerObject,
+    );
   }
 
   disconnectedCallback() {
@@ -184,6 +188,10 @@ export class ChainRater extends LitElement {
     this.removeEventListener(
       "view-account",
       this.handleViewAccount as EventListenerOrEventListenerObject,
+    );
+    this.removeEventListener(
+      "rate-item",
+      this.handleRateItem as EventListenerOrEventListenerObject,
     );
   }
 
@@ -201,6 +209,12 @@ export class ChainRater extends LitElement {
     this.tabState = {
       type: "people",
       selectedAccount: account as Address,
+    };
+  }
+  
+  handleRateItem() {
+    this.tabState = {
+      type: "rate"
     };
   }
 }
