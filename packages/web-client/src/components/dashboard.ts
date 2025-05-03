@@ -13,7 +13,7 @@ import {
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { ListenerManager } from "../utils/listener.utils.js";
 import "./stake-time-display.js";
-import "./address-display.js";
+import "./uri-display.js";
 
 //
 // Note that the dashboard does NOT update in real time. Reload to get the latest.
@@ -144,7 +144,7 @@ export class Dashboard extends LitElement {
         <div class="stats-card">
           <h2>Total Time Locked</h2>
           <div class="tvl-value">
-            <stake-time-display 
+            <stake-time-display
               class="inherit-color"
               .stake=${this.tvl}
               .aggregateMode=${true}
@@ -183,7 +183,6 @@ export class Dashboard extends LitElement {
 
     const elements = items.map((item) => {
       const uri = this.blockchainService.ratings.getUriFromHash(item.uriHash);
-      const label = uri ?? shortenAddress(item.uriHash);
 
       let valueDisplay;
       if (valueType === "stake") {
@@ -203,10 +202,7 @@ export class Dashboard extends LitElement {
       return html`
         <li>
           <a href="#" @click=${() => this.viewItem(uri ?? "", item.uriHash)}>
-            <address-display 
-              .address=${item.uriHash} 
-              .displayName=${uri}
-            ></address-display>
+            <uri-display .uri=${uri}></uri-display>
           </a>
           ${valueDisplay}
         </li>

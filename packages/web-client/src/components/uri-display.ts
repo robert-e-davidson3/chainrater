@@ -2,18 +2,9 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import "./truncate-text.js";
 
-/**
- * Address display component that handles:
- * - Optional display name
- * - Shortening with hover to view full info
- * - Delayed tooltips
- * - Future visualization support
- */
-@customElement("address-display")
-export class AddressDisplay extends LitElement {
-  @property({ type: String }) address = "";
-  @property({ type: String }) displayName = "";
-  @property({ type: Boolean }) visualize = false;
+@customElement("uri-display")
+export class UriDisplay extends LitElement {
+  @property({ type: String }) uri = "";
 
   @state() private isShortened = false;
 
@@ -85,21 +76,14 @@ export class AddressDisplay extends LitElement {
   `;
 
   render() {
-    const needsTooltip =
-      this.isShortened ||
-      (this.displayName !== "" && this.address !== this.displayName);
-    const tooltipContent = needsTooltip ? this.renderTooltip() : nothing;
-
-    // Determine text and ellipsis position based on content
-    const displayText = this.displayName || this.address;
-    const ellipsisPosition = this.displayName ? "end" : "middle";
+    const tooltipContent = this.isShortened ? this.renderTooltip() : nothing;
 
     return html`
       <truncate-text
-        .text=${displayText}
-        .ellipsisPosition=${ellipsisPosition}
-        .minChars=${20}
-        .maxChars=${20}
+        .text=${this.uri}
+        .ellipsisPosition=${"end"}
+        .minChars=${30}
+        .maxChars=${30}
         @truncated=${this.handleTruncatedEvent}
       ></truncate-text>
       ${tooltipContent}
@@ -111,26 +95,9 @@ export class AddressDisplay extends LitElement {
   }
 
   renderTooltip() {
-    const nameSection =
-      this.displayName && this.isShortened
-        ? html`
-            <div>
-              <div class="tooltip-label">Name</div>
-              <div>${this.displayName}</div>
-            </div>
-          `
-        : nothing;
-
-    const addressSection = html`
-      <div>
-        <div class="tooltip-label">Address</div>
-        <div>${this.address}</div>
-      </div>
-    `;
-
     return html`
       <div class="tooltip">
-        <div class="tooltip-content">${nameSection} ${addressSection}</div>
+        <div class="tooltip-content">${this.uri}</div>
       </div>
     `;
   }

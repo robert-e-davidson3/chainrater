@@ -2,23 +2,18 @@ import { LitElement, html, css } from "lit";
 import { customElement, state, property } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import {
-  type Rating,
   BlockchainService,
   Contract,
   ExistingRating,
 } from "../services/blockchain.service.js";
 import {
-  formatETH,
   formatTimeRemaining,
   MissingContextError,
-  shortenAddress,
 } from "../utils/blockchain.utils.js";
-import { Address } from "viem";
 import { ListenerManager } from "../utils/listener.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import "./stake-time-display.js";
 import "./address-display.js";
-import { ratingItemStyles, ratingStarsStyles } from "./rating-styles.js";
 
 /**
  * URI Ratings component
@@ -190,9 +185,7 @@ export class UriRatings extends LitElement {
       return html` <div class="loading">Loading ratings data...</div> `;
 
     return html`
-      <section class="uri-ratings">
-        ${this.renderRatingsList()}
-      </section>
+      <section class="uri-ratings">${this.renderRatingsList()}</section>
     `;
   }
 
@@ -207,8 +200,10 @@ export class UriRatings extends LitElement {
     }
 
     if (!this.blockchainService.ready)
-      return html`<div class="ratings-list"><p class="empty-list">Loading...</p></div>`;
-    
+      return html`<div class="ratings-list">
+        <p class="empty-list">Loading...</p>
+      </div>`;
+
     const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
     const currentUser = this.blockchainService.account?.toLowerCase();
 
@@ -217,12 +212,12 @@ export class UriRatings extends LitElement {
       const expirationTime = new Date(
         Number(1000n * (posted + stake / stakePerSecond)),
       );
-      
+
       // Determine expiration class
       const now = Date.now();
       const expTime = expirationTime.getTime();
       const timeLeft = expTime - now;
-      
+
       let expirationClass = "";
       if (timeLeft < 86400000) {
         // Less than 1 day
@@ -234,30 +229,30 @@ export class UriRatings extends LitElement {
         // Less than 1 month
         expirationClass = "expiring-warning";
       }
-      
+
       const isCurrentUser = currentUser === rater.toLowerCase();
 
       return html`
         <li class="${expirationClass}">
           <div class="rater">
-            <address-display 
-              .address=${rater} 
-              .displayName=${isCurrentUser ? 'You' : ''}
+            <address-display
+              .address=${rater}
+              .displayName=${isCurrentUser ? "You" : ""}
             ></address-display>
           </div>
           <div class="rating-stars">
-            <span class="stars">${"★".repeat(score)}${"☆".repeat(5 - score)}</span>
+            <span class="stars"
+              >${"★".repeat(score)}${"☆".repeat(5 - score)}</span
+            >
           </div>
           <div class="stake">
-            <stake-time-display 
+            <stake-time-display
               .stake=${stake}
               .aggregateMode=${true}
               .showDetails=${true}
             ></stake-time-display>
           </div>
-          <div class="expiration">
-            ${formatTimeRemaining(expirationTime)}
-          </div>
+          <div class="expiration">${formatTimeRemaining(expirationTime)}</div>
         </li>
       `;
     });
@@ -289,7 +284,7 @@ export class UriRatings extends LitElement {
       this.clearRatings();
       return;
     }
-    
+
     this.loading = true;
 
     try {
@@ -302,10 +297,10 @@ export class UriRatings extends LitElement {
         (total, rating) => total + rating.stake,
         0n,
       );
-      
+
       // Sort by stake (highest first)
-      this.ratings = ratings.sort((a, b) => 
-        b.stake > a.stake ? 1 : b.stake < a.stake ? -1 : 0
+      this.ratings = ratings.sort((a, b) =>
+        b.stake > a.stake ? 1 : b.stake < a.stake ? -1 : 0,
       );
     } finally {
       this.loading = false;

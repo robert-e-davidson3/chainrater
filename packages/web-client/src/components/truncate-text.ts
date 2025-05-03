@@ -22,6 +22,8 @@ export class TruncateText extends LitElement {
   // Minimum characters to display (including ellipsis)
   @property({ type: Number }) minChars = 9;
 
+  @property({ type: Number }) maxChars?: number;
+
   @property({ type: String }) ellipsisPosition: EllipsisPosition = "middle";
 
   render() {
@@ -30,9 +32,9 @@ export class TruncateText extends LitElement {
 
   getTruncatedText() {
     const maxChars = this.calculateWidth();
-    console.log(this.text, this.text.length, maxChars);
+
+    // Text fits without truncation
     if (this.text.length <= maxChars) {
-      // Text fits without truncation
       this.notifyTruncated(false);
       return this.text;
     }
@@ -73,26 +75,15 @@ export class TruncateText extends LitElement {
   }
 
   private calculateWidth(): number {
-    // First, let's try to measure the parent's width if we can
-    let parentWidth = 0;
-    let ourWidth = 0;
+    if (this.maxChars === this.minChars) return this.maxChars;
 
-    if (this.parentElement) parentWidth = this.parentElement.clientWidth;
+    const availableWidth = this.parentElement
+      ? this.parentElement.clientWidth
+      : this.clientWidth;
 
-    // Get our own width
-    ourWidth = this.clientWidth;
+    // If no available width then node does not exist, so avoid truncation
+    if (availableWidth <= 0) return 1000;
 
-    // Determine available width - if parent element has a width, use that
-    // Otherwise, use our own width
-    const availableWidth = parentWidth > 0 ? parentWidth : ourWidth;
-
-    // If we have no width information, assume there's enough space
-    // This prevents unnecessary truncation during initial render
-    if (availableWidth <= 0) {
-      return 1000; // Large number to avoid truncation
-    }
-
-    // Get computed styles to account for any styling applied to the element
     const computedStyle = window.getComputedStyle(this);
 
     // Measure a monospace character to get its width
@@ -103,17 +94,22 @@ export class TruncateText extends LitElement {
     tempSpan.style.letterSpacing = computedStyle.letterSpacing;
     tempSpan.style.visibility = "hidden";
     tempSpan.style.position = "absolute";
-    tempSpan.textContent = "X";
+    tempSpan.textContent = "M";
     document.body.appendChild(tempSpan);
     const charWidth = tempSpan.getBoundingClientRect().width;
     document.body.removeChild(tempSpan);
 
-    // If character width is invalid, don't truncate
+    // Something went wrong so avoid truncation
     if (charWidth <= 0) return 1000;
 
     // Calculate how many characters can fit
+    // (Unsure why Math.ceil is needed here, but it is)
     const maxChars = Math.ceil(availableWidth / charWidth);
 
+    // If enforced max is less than real max, use enforced max
+    if (this.maxChars && this.maxChars < maxChars) return this.maxChars;
+
+    // If maxChars is larger than the text, return the text length
     if (maxChars >= this.text.length) return this.text.length;
 
     // Otherwise, use the max number of characters that can fit, or minChars if larger
