@@ -26,6 +26,10 @@ export class AddressDisplay extends LitElement {
       color: #3498db;
       cursor: pointer;
     }
+    
+    :host(:hover) {
+      text-decoration: underline;
+    }
 
     truncate-text {
       width: auto;
@@ -98,19 +102,36 @@ export class AddressDisplay extends LitElement {
     const chars = this.truncate ? 20 : 1000;
 
     return html`
-      <truncate-text
-        .text=${displayText}
-        .ellipsisPosition=${ellipsisPosition}
-        .minChars=${chars}
-        .maxChars=${chars}
-        @truncated=${this.handleTruncatedEvent}
-      ></truncate-text>
-      ${tooltipContent}
+      <div @click=${this.handleAddressClick}>
+        <truncate-text
+          .text=${displayText}
+          .ellipsisPosition=${ellipsisPosition}
+          .minChars=${chars}
+          .maxChars=${chars}
+          @truncated=${this.handleTruncatedEvent}
+        ></truncate-text>
+        ${tooltipContent}
+      </div>
     `;
   }
 
   handleTruncatedEvent(e: CustomEvent) {
     this.isShortened = e.detail.truncated;
+  }
+  
+  handleAddressClick(e: Event) {
+    e.stopPropagation(); // Prevent event from bubbling up
+    
+    if (this.address) {
+      // Dispatch view-account event to navigate to account details
+      this.dispatchEvent(
+        new CustomEvent("view-account", {
+          detail: { account: this.address },
+          bubbles: true,
+          composed: true,
+        })
+      );
+    }
   }
 
   renderTooltip() {

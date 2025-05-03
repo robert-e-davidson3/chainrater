@@ -88,7 +88,8 @@ The main functionality is there but there's plenty more to improve!
 7. In the Ratings tab, there needs to be a filter for expiry: only expired, only non-expired, both. The most common use of this tab is likely to be finding expired ratings for quick cash... until someone writes a bot.
 8. The people tab also needs search functionality. Same dealie, basically: expiry and URI name. Then sort by rating etc.
 9. People tab mode for a single account should display the account address and display name (if known), not just the total stake. (DONE)
-10. Clicking on address anywhere ought to bring you to the People tab under the single account mode. This includes in single-URI and Ratings.
+10. Clicking on address anywhere ought to bring you to the People tab under the single account mode. This includes in single-URI and Ratings. (DONE)
+11. Back/Forward needs to work as expected. Once it does, remove all of the "Back to $x" buttons (ex: "Back to People").
 
 ### Important Notes
 - Do not implement pagination - it is for later

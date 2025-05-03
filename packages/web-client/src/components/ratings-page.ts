@@ -338,12 +338,10 @@ export class RatingsPage extends LitElement {
             </a>
           </td>
           <td class="rater-address">
-            <a href="#" @click=${(e: Event) => this.handleRaterClick(e, rating.rater)}>
               <address-display 
                 .address=${rating.rater} 
                 .displayName=${rating.isCurrentUser ? 'You' : ''}
               ></address-display>
-            </a>
           </td>
           <td>
             <span class="rating-score">${rating.score} ★</span>
