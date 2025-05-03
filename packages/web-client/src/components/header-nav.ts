@@ -44,6 +44,12 @@ export class HeaderNav extends LitElement {
       font-weight: bold;
       color: #3498db;
     }
+    
+    .product-name {
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
 
     nav {
       display: flex;
@@ -130,15 +136,13 @@ export class HeaderNav extends LitElement {
     return html`
       <header>
         <div class="branding">
-          <span class="product-name">ChainRater</span>
+          <a
+            class="product-name"
+            @click=${() => this.switchTab("dashboard")}
+            >ChainRater</a>
         </div>
 
         <nav>
-          <a
-            class="${this.activeTab === "dashboard" ? "active" : ""}"
-            @click=${() => this.switchTab("dashboard")}
-            >Dashboard</a
-          >
           <a
             class="${this.activeTab === "people" ? "active" : ""}"
             @click=${() => this.switchTab("people")}
