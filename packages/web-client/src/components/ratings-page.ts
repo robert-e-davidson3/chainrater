@@ -28,6 +28,7 @@ export class RatingsPage extends LitElement {
   @state() private searchInput = "";
   @state() private loading = true;
   @state() private sortBy: 'recent' | 'stake' | 'score' | 'expiry' = 'recent';
+  @state() private sortDirection: 'asc' | 'desc' = 'desc';
   @state() private expiryFilter: 'all' | 'expired' | 'active' = 'all';
   @state() private ownerFilter: 'all' | 'yours' = 'yours';
 
@@ -230,11 +231,33 @@ export class RatingsPage extends LitElement {
       margin-bottom: 0.5rem;
     }
     
-    .expiry-filter, .owner-filter {
+    .expiry-filter, .owner-filter, .sort-filter {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 0.5rem;
+    }
+    
+    .direction-button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-right: 0.5rem;
+    }
+    
+    .direction-button:hover {
+      background-color: #2980b9;
     }
 
     .sort-button, .filter-button {
@@ -319,31 +342,41 @@ export class RatingsPage extends LitElement {
         </div>
 
         <div class="filter-controls">
-          <div class="sort-options">
+          <div class="sort-filter">
+            <span class="filter-label">Sort:</span>
             <button 
-              class="sort-button ${this.sortBy === 'recent' ? 'active' : ''}"
-              @click=${() => this.setSortBy('recent')}
+              class="direction-button"
+              @click=${this.toggleSortDirection}
+              title="${this.sortDirection === 'desc' ? 'Descending' : 'Ascending'}"
             >
-              Most Recent
+              ${this.sortDirection === 'desc' ? '↓' : '↑'}
             </button>
-            <button 
-              class="sort-button ${this.sortBy === 'stake' ? 'active' : ''}"
-              @click=${() => this.setSortBy('stake')}
-            >
-              Highest Stake
-            </button>
-            <button 
-              class="sort-button ${this.sortBy === 'score' ? 'active' : ''}"
-              @click=${() => this.setSortBy('score')}
-            >
-              Top Scores
-            </button>
-            <button 
-              class="sort-button ${this.sortBy === 'expiry' ? 'active' : ''}"
-              @click=${() => this.setSortBy('expiry')}
-            >
-              Soonest Expiry
-            </button>
+            <div class="sort-options">
+              <button 
+                class="sort-button ${this.sortBy === 'recent' ? 'active' : ''}"
+                @click=${() => this.setSortBy('recent')}
+              >
+                ${this.sortDirection === 'desc' ? 'Most Recent' : 'Oldest First'}
+              </button>
+              <button 
+                class="sort-button ${this.sortBy === 'stake' ? 'active' : ''}"
+                @click=${() => this.setSortBy('stake')}
+              >
+                ${this.sortDirection === 'desc' ? 'Highest Stake' : 'Lowest Stake'}
+              </button>
+              <button 
+                class="sort-button ${this.sortBy === 'score' ? 'active' : ''}"
+                @click=${() => this.setSortBy('score')}
+              >
+                ${this.sortDirection === 'desc' ? 'Top Scores' : 'Bottom Scores'}
+              </button>
+              <button 
+                class="sort-button ${this.sortBy === 'expiry' ? 'active' : ''}"
+                @click=${() => this.setSortBy('expiry')}
+              >
+                ${this.sortDirection === 'desc' ? 'Latest Expiry' : 'Soonest Expiry'}
+              </button>
+            </div>
           </div>
           
           <div class="filter-row">
@@ -486,6 +519,11 @@ export class RatingsPage extends LitElement {
     this.sortRatings();
   }
   
+  private toggleSortDirection() {
+    this.sortDirection = this.sortDirection === 'desc' ? 'asc' : 'desc';
+    this.sortRatings();
+  }
+  
   private setExpiryFilter(filter: 'all' | 'expired' | 'active') {
     this.expiryFilter = filter;
     this.requestUpdate();
@@ -600,36 +638,44 @@ export class RatingsPage extends LitElement {
   private sortRatings() {
     if (!this.ratings.length) return;
     
+    // Create a new array to hold the sorted ratings
+    let sortedRatings = [...this.ratings];
+    
+    // Define the comparison function based on sortBy and sortDirection
+    let compare: (a: RatingItem, b: RatingItem) => number;
+    
     switch (this.sortBy) {
       case 'recent':
-        // Sort by posted time (most recent first)
-        this.ratings = [...this.ratings].sort((a, b) => 
-          Number(b.posted) - Number(a.posted)
-        );
+        // Sort by posted time
+        compare = (a, b) => Number(a.posted) - Number(b.posted);
         break;
         
       case 'stake':
-        // Sort by stake amount (highest first)
-        this.ratings = [...this.ratings].sort((a, b) => 
-          b.stake > a.stake ? 1 : b.stake < a.stake ? -1 : 0
-        );
+        // Sort by stake amount
+        compare = (a, b) => a.stake > b.stake ? 1 : a.stake < b.stake ? -1 : 0;
         break;
         
       case 'score':
-        // Sort by score (highest first)
-        this.ratings = [...this.ratings].sort((a, b) => 
-          b.score - a.score
-        );
+        // Sort by score
+        compare = (a, b) => a.score - b.score;
         break;
         
       case 'expiry':
-        // Sort by expiration time (soonest first)
-        this.ratings = [...this.ratings].sort((a, b) => 
-          a.expirationTime.getTime() - b.expirationTime.getTime()
-        );
+        // Sort by expiration time
+        compare = (a, b) => a.expirationTime.getTime() - b.expirationTime.getTime();
         break;
+        
+      default:
+        // Default to recent
+        compare = (a, b) => Number(a.posted) - Number(b.posted);
     }
     
+    // Apply sort and handle direction
+    this.ratings = sortedRatings.sort((a, b) => {
+      // If ascending, use the comparison function as-is
+      // If descending, negate the result to reverse the order
+      return this.sortDirection === 'asc' ? compare(a, b) : -compare(a, b);
+    });
   }
 
   private processRatings(ratings: ExistingRating[]) {
