@@ -7,7 +7,6 @@ import {
 } from "../services/blockchain.service.js";
 import {
   formatETH,
-  shortenAddress,
   MissingContextError,
 } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
@@ -15,6 +14,7 @@ import { Address } from "viem";
 import { ListenerManager } from "../utils/listener.utils.js";
 import "./user-ratings.js";
 import "./stake-time-display.js";
+import "./address-display.js";
 
 interface AccountSummary {
   address: Address;
@@ -150,6 +150,24 @@ export class PeoplePage extends LitElement {
     .account-address {
       font-family: monospace;
       color: #3498db;
+      position: relative;
+      cursor: pointer;
+    }
+    
+    .account-address:hover::after {
+      content: attr(data-full-address);
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background-color: #333;
+      color: white;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+      white-space: nowrap;
+      font-size: 0.8rem;
+      z-index: 10;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     }
 
     .empty-list {
@@ -237,7 +255,7 @@ export class PeoplePage extends LitElement {
           class="account-row ${account.isCurrentUser ? "current-user" : ""}"
           @click=${() => this.viewAccount(account.address)}
         >
-          <td class="account-address">${shortenAddress(account.address)}</td>
+          <td class="account-address"><address-display .address=${account.address}></address-display></td>
           <td>${account.ratingCount}</td>
           <td>
             <span class="avg-score">${account.averageScore.toFixed(1)} ★</span>

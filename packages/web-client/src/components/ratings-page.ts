@@ -14,6 +14,7 @@ import { blockchainServiceContext } from "../contexts/blockchain-service.context
 import { ListenerManager } from "../utils/listener.utils.js";
 import { URIValidator } from "../utils/uri.utils.js";
 import "./stake-time-display.js";
+import "./address-display.js";
 
 interface RatingItem extends ExistingRating {
   uri: string;
@@ -321,8 +322,10 @@ export class RatingsPage extends LitElement {
           </td>
           <td class="rater-address">
             <a href="#" @click=${(e: Event) => this.handleRaterClick(e, rating.rater)}>
-              ${shortenAddress(rating.rater)}
-              ${rating.isCurrentUser ? ' (You)' : ''}
+              <address-display 
+                .address=${rating.rater} 
+                .displayName=${rating.isCurrentUser ? 'You' : ''}
+              ></address-display>
             </a>
           </td>
           <td>

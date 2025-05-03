@@ -13,6 +13,7 @@ import {
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { ListenerManager } from "../utils/listener.utils.js";
 import "./stake-time-display.js";
+import "./address-display.js";
 
 //
 // Note that the dashboard does NOT update in real time. Reload to get the latest.
@@ -202,7 +203,10 @@ export class Dashboard extends LitElement {
       return html`
         <li>
           <a href="#" @click=${() => this.viewItem(uri ?? "", item.uriHash)}>
-            ${label}
+            <address-display 
+              .address=${item.uriHash} 
+              .displayName=${uri}
+            ></address-display>
           </a>
           ${valueDisplay}
         </li>

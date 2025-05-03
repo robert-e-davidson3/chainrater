@@ -2,12 +2,10 @@ import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import { BlockchainService } from "../services/blockchain.service.js";
-import {
-  shortenAddress,
-  MissingContextError,
-} from "../utils/blockchain.utils.js";
-
+import { MissingContextError } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
+
+import "./address-display.js";
 
 @customElement("header-nav")
 export class HeaderNav extends LitElement {
@@ -86,6 +84,25 @@ export class HeaderNav extends LitElement {
       background-color: #f5f5f5;
       padding: 0.25rem 0.5rem;
       border-radius: 4px;
+      position: relative;
+      cursor: pointer;
+    }
+    
+    .address:hover::after {
+      content: attr(data-full-address);
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: white;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+      white-space: nowrap;
+      font-size: 0.8rem;
+      z-index: 10;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     }
 
     button {
@@ -156,9 +173,7 @@ export class HeaderNav extends LitElement {
 
   renderWalletButton() {
     if (this.isConnected) {
-      return html`<span class="address"
-          >${shortenAddress(this.accountAddress)}
-        </span>
+      return html`<address-display class="address" .address=${this.accountAddress}></address-display>
         <button @click=${this.disconnect}>Disconnect</button>`;
     } else if (this.isConnecting) {
       return html`<button disabled>Connecting...</button>`;

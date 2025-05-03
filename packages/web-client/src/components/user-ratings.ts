@@ -16,6 +16,7 @@ import { Address } from "viem";
 import { ListenerManager } from "../utils/listener.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import "./stake-time-display.js";
+import "./address-display.js";
 
 /**
  * Rating stars component

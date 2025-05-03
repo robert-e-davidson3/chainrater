@@ -17,6 +17,7 @@ import { Address } from "viem";
 import { ListenerManager } from "../utils/listener.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import "./stake-time-display.js";
+import "./address-display.js";
 import { ratingItemStyles, ratingStarsStyles } from "./rating-styles.js";
 
 /**
@@ -235,13 +236,15 @@ export class UriRatings extends LitElement {
       }
       
       const isCurrentUser = currentUser === rater.toLowerCase();
-      const raterDisplay = isCurrentUser 
-        ? `${shortenAddress(rater)} (You)`
-        : shortenAddress(rater);
 
       return html`
         <li class="${expirationClass}">
-          <div class="rater">${raterDisplay}</div>
+          <div class="rater">
+            <address-display 
+              .address=${rater} 
+              .displayName=${isCurrentUser ? 'You' : ''}
+            ></address-display>
+          </div>
           <div class="rating-stars">
             <span class="stars">${"★".repeat(score)}${"☆".repeat(5 - score)}</span>
           </div>
