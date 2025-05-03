@@ -132,12 +132,8 @@ export class Dashboard extends LitElement {
   `;
 
   render() {
-    if (!this.blockchainService.ready)
-      return html`<div class="loading">Please connect wallet</div>`;
-
-    if (this.loading) {
+    if (this.loading)
       return html` <div class="loading">Loading dashboard data...</div> `;
-    }
 
     return html`
       <section class="dashboard">
@@ -237,6 +233,7 @@ export class Dashboard extends LitElement {
   }
 
   viewItem(uri: string, uriHash: string) {
+    console.log("Dashboard: viewItem called with", { uri, uriHash });
     // Dispatch event to switch to rate tab with this URI
     this.dispatchEvent(
       new CustomEvent("view-uri", {

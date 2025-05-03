@@ -1,4 +1,4 @@
-import { LitElement, html, css } from "lit";
+import { LitElement, html, css, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import { BlockchainService } from "../services/blockchain.service.js";
@@ -63,6 +63,7 @@ export class TimeInput extends LitElement {
   `;
 
   render() {
+    if (!this.blockchainService.ready) return nothing;
     return html`
       <div class="time-input-container">
         <input

@@ -27,10 +27,10 @@ export class RatingsPage extends LitElement {
   @state() private ratings: RatingItem[] = [];
   @state() private searchInput = "";
   @state() private loading = true;
-  @state() private sortBy: 'recent' | 'stake' | 'score' | 'expiry' = 'recent';
-  @state() private sortDirection: 'asc' | 'desc' = 'desc';
-  @state() private expiryFilter: 'all' | 'expired' | 'active' = 'all';
-  @state() private ownerFilter: 'all' | 'yours' = 'yours';
+  @state() private sortBy: "recent" | "stake" | "score" | "expiry" = "recent";
+  @state() private sortDirection: "asc" | "desc" = "desc";
+  @state() private expiryFilter: "all" | "expired" | "active" = "all";
+  @state() private ownerFilter: "all" | "yours" = "yours";
 
   @consume({ context: blockchainServiceContext })
   _blockchainService?: BlockchainService;
@@ -62,13 +62,13 @@ export class RatingsPage extends LitElement {
       margin-bottom: 1rem;
       align-items: center;
     }
-    
+
     .create-rating-button {
       background-color: #2ecc71;
       white-space: nowrap;
       min-width: 120px;
     }
-    
+
     .create-rating-button:hover {
       background-color: #27ae60;
     }
@@ -117,7 +117,8 @@ export class RatingsPage extends LitElement {
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
-    h2, h3 {
+    h2,
+    h3 {
       margin-top: 0;
       margin-bottom: 1.5rem;
       color: #333;
@@ -171,17 +172,20 @@ export class RatingsPage extends LitElement {
       background-color: rgba(52, 152, 219, 0.1);
     }
 
-    .uri-item, .rater-address {
+    .uri-item,
+    .rater-address {
       font-family: monospace;
       color: #3498db;
     }
 
-    .uri-item a, .rater-address a {
+    .uri-item a,
+    .rater-address a {
       color: #3498db;
       text-decoration: none;
     }
 
-    .uri-item a:hover, .rater-address a:hover {
+    .uri-item a:hover,
+    .rater-address a:hover {
       text-decoration: underline;
     }
 
@@ -209,13 +213,14 @@ export class RatingsPage extends LitElement {
       gap: 1rem;
       margin-bottom: 1rem;
     }
-    
-    .sort-options, .filter-options {
+
+    .sort-options,
+    .filter-options {
       display: flex;
       gap: 0.75rem;
       flex-wrap: wrap;
     }
-    
+
     .filter-label {
       font-weight: 500;
       color: #666;
@@ -223,21 +228,23 @@ export class RatingsPage extends LitElement {
       display: flex;
       align-items: center;
     }
-    
+
     .filter-row {
       display: flex;
       flex-wrap: wrap;
       gap: 1.5rem;
       margin-bottom: 0.5rem;
     }
-    
-    .expiry-filter, .owner-filter, .sort-filter {
+
+    .expiry-filter,
+    .owner-filter,
+    .sort-filter {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 0.5rem;
     }
-    
+
     .direction-button {
       width: 32px;
       height: 32px;
@@ -255,12 +262,13 @@ export class RatingsPage extends LitElement {
       transition: background-color 0.2s;
       margin-right: 0.5rem;
     }
-    
+
     .direction-button:hover {
       background-color: #2980b9;
     }
 
-    .sort-button, .filter-button {
+    .sort-button,
+    .filter-button {
       background-color: #f5f5f5;
       color: #666;
       border: 1px solid #ddd;
@@ -271,17 +279,18 @@ export class RatingsPage extends LitElement {
       font-size: 0.9rem;
     }
 
-    .sort-button.active, .filter-button.active {
+    .sort-button.active,
+    .filter-button.active {
       background-color: #3498db;
       color: white;
       border-color: #3498db;
     }
-    
+
     .filter-button.active[data-filter="expired"] {
       background-color: #e74c3c;
       border-color: #e74c3c;
     }
-    
+
     .filter-button.active[data-filter="active"] {
       background-color: #2ecc71;
       border-color: #2ecc71;
@@ -302,16 +311,16 @@ export class RatingsPage extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    
+
     this.listeners.add(this.blockchainService, "connected", () => {
       this.loadRatings();
     });
-    
+
     this.listeners.add(this.blockchainService, "disconnected", () => {
       this.unloadRatings();
     });
-    
-    this.loadRatings();
+
+    if (this.blockchainService.ready) this.loadRatings();
   }
 
   disconnectedCallback() {
@@ -321,11 +330,11 @@ export class RatingsPage extends LitElement {
 
   render() {
     const ratingsList = this.renderRatingsList();
-    
+
     return html`
       <section class="ratings-container">
         <h2>Ratings</h2>
-        
+
         <div class="search-container">
           <input
             type="text"
@@ -333,7 +342,7 @@ export class RatingsPage extends LitElement {
             .value=${this.searchInput}
             @input=${this.handleSearchInputChange}
           />
-          <button 
+          <button
             class="create-rating-button"
             @click=${this.handleCreateRating}
           >
@@ -344,83 +353,103 @@ export class RatingsPage extends LitElement {
         <div class="filter-controls">
           <div class="sort-filter">
             <span class="filter-label">Sort:</span>
-            <button 
+            <button
               class="direction-button"
               @click=${this.toggleSortDirection}
-              title="${this.sortDirection === 'desc' ? 'Descending' : 'Ascending'}"
+              title="${this.sortDirection === "desc"
+                ? "Descending"
+                : "Ascending"}"
             >
-              ${this.sortDirection === 'desc' ? '↓' : '↑'}
+              ${this.sortDirection === "desc" ? "↓" : "↑"}
             </button>
             <div class="sort-options">
-              <button 
-                class="sort-button ${this.sortBy === 'recent' ? 'active' : ''}"
-                @click=${() => this.setSortBy('recent')}
+              <button
+                class="sort-button ${this.sortBy === "recent" ? "active" : ""}"
+                @click=${() => this.setSortBy("recent")}
               >
-                ${this.sortDirection === 'desc' ? 'Most Recent' : 'Oldest First'}
+                ${this.sortDirection === "desc"
+                  ? "Most Recent"
+                  : "Oldest First"}
               </button>
-              <button 
-                class="sort-button ${this.sortBy === 'stake' ? 'active' : ''}"
-                @click=${() => this.setSortBy('stake')}
+              <button
+                class="sort-button ${this.sortBy === "stake" ? "active" : ""}"
+                @click=${() => this.setSortBy("stake")}
               >
-                ${this.sortDirection === 'desc' ? 'Highest Stake' : 'Lowest Stake'}
+                ${this.sortDirection === "desc"
+                  ? "Highest Stake"
+                  : "Lowest Stake"}
               </button>
-              <button 
-                class="sort-button ${this.sortBy === 'score' ? 'active' : ''}"
-                @click=${() => this.setSortBy('score')}
+              <button
+                class="sort-button ${this.sortBy === "score" ? "active" : ""}"
+                @click=${() => this.setSortBy("score")}
               >
-                ${this.sortDirection === 'desc' ? 'Top Scores' : 'Bottom Scores'}
+                ${this.sortDirection === "desc"
+                  ? "Top Scores"
+                  : "Bottom Scores"}
               </button>
-              <button 
-                class="sort-button ${this.sortBy === 'expiry' ? 'active' : ''}"
-                @click=${() => this.setSortBy('expiry')}
+              <button
+                class="sort-button ${this.sortBy === "expiry" ? "active" : ""}"
+                @click=${() => this.setSortBy("expiry")}
               >
-                ${this.sortDirection === 'desc' ? 'Latest Expiry' : 'Soonest Expiry'}
+                ${this.sortDirection === "desc"
+                  ? "Latest Expiry"
+                  : "Soonest Expiry"}
               </button>
             </div>
           </div>
-          
+
           <div class="filter-row">
             <div class="owner-filter">
               <span class="filter-label">Owner:</span>
               <div class="filter-options">
-                <button 
-                  class="filter-button ${this.ownerFilter === 'yours' ? 'active' : ''}"
+                <button
+                  class="filter-button ${this.ownerFilter === "yours"
+                    ? "active"
+                    : ""}"
                   data-filter="yours"
-                  @click=${() => this.setOwnerFilter('yours')}
+                  @click=${() => this.setOwnerFilter("yours")}
                 >
                   Your Ratings
                 </button>
-                <button 
-                  class="filter-button ${this.ownerFilter === 'all' ? 'active' : ''}"
+                <button
+                  class="filter-button ${this.ownerFilter === "all"
+                    ? "active"
+                    : ""}"
                   data-filter="all"
-                  @click=${() => this.setOwnerFilter('all')}
+                  @click=${() => this.setOwnerFilter("all")}
                 >
                   All Ratings
                 </button>
               </div>
             </div>
-            
+
             <div class="expiry-filter">
               <span class="filter-label">Status:</span>
               <div class="filter-options">
-                <button 
-                  class="filter-button ${this.expiryFilter === 'all' ? 'active' : ''}"
+                <button
+                  class="filter-button ${this.expiryFilter === "all"
+                    ? "active"
+                    : ""}"
                   data-filter="all"
-                  @click=${() => this.setExpiryFilter('all')}
+                  @click=${() => this.setExpiryFilter("all")}
                 >
                   All Status
                 </button>
-                <button 
-                  class="filter-button ${this.expiryFilter === 'active' ? 'active' : ''}"
+                <button
+                  class="filter-button ${this.expiryFilter === "active"
+                    ? "active"
+                    : ""}"
                   data-filter="active"
-                  @click=${() => this.setExpiryFilter('active')}
+                  @click=${() => this.setExpiryFilter("active")}
                 >
                   Active Only
                 </button>
-                <button 
-                  class="filter-button ${this.expiryFilter === 'expired' ? 'active' : ''}"
+                <button
+                  class="filter-button ${this.expiryFilter === "expired"
+                    ? "active"
+                    : ""}"
                   data-filter="expired"
-                  @click=${() => this.setExpiryFilter('expired')}
+                  @click=${() => this.setExpiryFilter("expired")}
                 >
                   Expired Only
                 </button>
@@ -448,34 +477,44 @@ export class RatingsPage extends LitElement {
     // Get filtered ratings based on search input and expiry filter
     const filteredRatings = this.getFilteredRatings();
 
-    const rows = filteredRatings.map(rating => {
+    const rows = filteredRatings.map((rating) => {
       const expirationClass = this.getExpirationClass(rating.expirationTime);
-      
-      const uriDisplay = rating.uri 
+
+      const uriDisplay = rating.uri
         ? html`
-            <span class="uri-schema">${URIValidator.getSchema(rating.uri)}://</span>
+            <span class="uri-schema"
+              >${URIValidator.getSchema(rating.uri)}://</span
+            >
             ${URIValidator.getDisplayName(rating.uri)}
           `
         : rating.uriHash.substring(0, 10) + "...";
 
       return html`
-        <tr class="rating-row ${rating.isCurrentUser ? 'current-user' : ''} ${expirationClass}">
+        <tr
+          class="rating-row ${rating.isCurrentUser
+            ? "current-user"
+            : ""} ${expirationClass}"
+        >
           <td class="uri-item">
-            <a href="#" @click=${(e: Event) => this.handleUriClick(e, rating.uriHash, rating.uri)}>
+            <a
+              href="#"
+              @click=${(e: Event) =>
+                this.handleUriClick(e, rating.uriHash, rating.uri)}
+            >
               ${uriDisplay}
             </a>
           </td>
           <td class="rater-address">
-              <address-display 
-                .address=${rating.rater} 
-                .displayName=${rating.isCurrentUser ? 'You' : ''}
-              ></address-display>
+            <address-display
+              .address=${rating.rater}
+              .displayName=${rating.isCurrentUser ? "You" : ""}
+            ></address-display>
           </td>
           <td>
             <span class="rating-score">${rating.score} ★</span>
           </td>
           <td>
-            <stake-time-display 
+            <stake-time-display
               .stake=${rating.stake}
               .aggregateMode=${true}
               .showDetails=${true}
@@ -491,14 +530,18 @@ export class RatingsPage extends LitElement {
         <table>
           <thead>
             <tr>
-              <th @click=${() => this.handleSortClick('uri')}>URI</th>
-              <th @click=${() => this.handleSortClick('rater')}>Rater</th>
-              <th @click=${() => this.handleSortClick('score')}>Score</th>
-              <th @click=${() => this.handleSortClick('stake')}>Stake</th>
-              <th @click=${() => this.handleSortClick('expiration')}>Expires In</th>
+              <th @click=${() => this.handleSortClick("uri")}>URI</th>
+              <th @click=${() => this.handleSortClick("rater")}>Rater</th>
+              <th @click=${() => this.handleSortClick("score")}>Score</th>
+              <th @click=${() => this.handleSortClick("stake")}>Stake</th>
+              <th @click=${() => this.handleSortClick("expiration")}>
+                Expires In
+              </th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody>
+            ${rows}
+          </tbody>
         </table>
       </div>
     `;
@@ -514,29 +557,29 @@ export class RatingsPage extends LitElement {
     // This could be expanded to sort by specific columns if needed
   }
 
-  private setSortBy(sortType: 'recent' | 'stake' | 'score' | 'expiry') {
+  private setSortBy(sortType: "recent" | "stake" | "score" | "expiry") {
     this.sortBy = sortType;
     this.sortRatings();
   }
-  
+
   private toggleSortDirection() {
-    this.sortDirection = this.sortDirection === 'desc' ? 'asc' : 'desc';
+    this.sortDirection = this.sortDirection === "desc" ? "asc" : "desc";
     this.sortRatings();
   }
-  
-  private setExpiryFilter(filter: 'all' | 'expired' | 'active') {
+
+  private setExpiryFilter(filter: "all" | "expired" | "active") {
     this.expiryFilter = filter;
     this.requestUpdate();
   }
-  
-  private setOwnerFilter(filter: 'all' | 'yours') {
+
+  private setOwnerFilter(filter: "all" | "yours") {
     this.ownerFilter = filter;
     this.requestUpdate();
   }
 
   private handleUriClick(e: Event, uriHash: string, uri: string) {
     e.preventDefault();
-    
+
     // Dispatch view-uri event to navigate to URI details
     this.dispatchEvent(
       new CustomEvent("view-uri", {
@@ -549,7 +592,7 @@ export class RatingsPage extends LitElement {
 
   private handleRaterClick(e: Event, raterAddress: string) {
     e.preventDefault();
-    
+
     // Dispatch event to navigate to rater details
     this.dispatchEvent(
       new CustomEvent("view-account", {
@@ -559,7 +602,7 @@ export class RatingsPage extends LitElement {
       }),
     );
   }
-  
+
   private handleCreateRating() {
     // Dispatch event to navigate to the rating form
     this.dispatchEvent(
@@ -587,32 +630,35 @@ export class RatingsPage extends LitElement {
     }
     return "";
   }
-  
+
   private getFilteredRatings(): RatingItem[] {
     let filteredRatings = this.ratings;
-    
+
     // Apply search filter
     if (this.searchInput) {
-      filteredRatings = filteredRatings.filter(rating => 
-        rating.uri.toLowerCase().includes(this.searchInput.toLowerCase()) ||
-        rating.rater.toLowerCase().includes(this.searchInput.toLowerCase())
+      filteredRatings = filteredRatings.filter(
+        (rating) =>
+          rating.uri.toLowerCase().includes(this.searchInput.toLowerCase()) ||
+          rating.rater.toLowerCase().includes(this.searchInput.toLowerCase()),
       );
     }
-    
+
     // Apply expiry filter
-    if (this.expiryFilter !== 'all') {
+    if (this.expiryFilter !== "all") {
       const now = Date.now();
-      filteredRatings = filteredRatings.filter(rating => {
+      filteredRatings = filteredRatings.filter((rating) => {
         const isExpired = rating.expirationTime.getTime() <= now;
-        return this.expiryFilter === 'expired' ? isExpired : !isExpired;
+        return this.expiryFilter === "expired" ? isExpired : !isExpired;
       });
     }
-    
+
     // Apply owner filter
-    if (this.ownerFilter === 'yours') {
-      filteredRatings = filteredRatings.filter(rating => rating.isCurrentUser);
+    if (this.ownerFilter === "yours") {
+      filteredRatings = filteredRatings.filter(
+        (rating) => rating.isCurrentUser,
+      );
     }
-    
+
     return filteredRatings;
   }
 
@@ -623,7 +669,7 @@ export class RatingsPage extends LitElement {
       const ratings = this.blockchainService.ratings.getRatings({
         deleted: false,
       });
-      
+
       this.processRatings(ratings);
     } finally {
       this.loading = false;
@@ -634,70 +680,73 @@ export class RatingsPage extends LitElement {
     this.ratings = [];
     this.loading = false;
   }
-  
+
   private sortRatings() {
     if (!this.ratings.length) return;
-    
+
     // Create a new array to hold the sorted ratings
     let sortedRatings = [...this.ratings];
-    
+
     // Define the comparison function based on sortBy and sortDirection
     let compare: (a: RatingItem, b: RatingItem) => number;
-    
+
     switch (this.sortBy) {
-      case 'recent':
+      case "recent":
         // Sort by posted time
         compare = (a, b) => Number(a.posted) - Number(b.posted);
         break;
-        
-      case 'stake':
+
+      case "stake":
         // Sort by stake amount
-        compare = (a, b) => a.stake > b.stake ? 1 : a.stake < b.stake ? -1 : 0;
+        compare = (a, b) =>
+          a.stake > b.stake ? 1 : a.stake < b.stake ? -1 : 0;
         break;
-        
-      case 'score':
+
+      case "score":
         // Sort by score
         compare = (a, b) => a.score - b.score;
         break;
-        
-      case 'expiry':
+
+      case "expiry":
         // Sort by expiration time
-        compare = (a, b) => a.expirationTime.getTime() - b.expirationTime.getTime();
+        compare = (a, b) =>
+          a.expirationTime.getTime() - b.expirationTime.getTime();
         break;
-        
+
       default:
         // Default to recent
         compare = (a, b) => Number(a.posted) - Number(b.posted);
     }
-    
+
     // Apply sort and handle direction
     this.ratings = sortedRatings.sort((a, b) => {
       // If ascending, use the comparison function as-is
       // If descending, negate the result to reverse the order
-      return this.sortDirection === 'asc' ? compare(a, b) : -compare(a, b);
+      return this.sortDirection === "asc" ? compare(a, b) : -compare(a, b);
     });
   }
 
   private processRatings(ratings: ExistingRating[]) {
     const currentUserAddress = this.blockchainService.account?.toLowerCase();
     const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
-    
-    const processedRatings: RatingItem[] = ratings.map(rating => {
+
+    const processedRatings: RatingItem[] = ratings.map((rating) => {
       const uri = this.blockchainService.ratings.getUriFromHash(rating.uriHash);
       const expirationTime = new Date(
-        Number(1000n * (rating.posted + rating.stake / stakePerSecond))
+        Number(1000n * (rating.posted + rating.stake / stakePerSecond)),
       );
-      const isCurrentUser = !!currentUserAddress && 
+      const isCurrentUser =
+        !!currentUserAddress &&
         rating.rater.toLowerCase() === currentUserAddress;
-        
+
       return {
         ...rating,
         uri,
         expirationTime,
-        isCurrentUser
+        isCurrentUser,
       };
     });
-    
+
     this.ratings = processedRatings;
     this.sortRatings();
   }

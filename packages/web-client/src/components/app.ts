@@ -25,29 +25,24 @@ export class ChainRater extends LitElement {
   @property({ type: String }) account = "";
 
   @state() private tabState: TabState = { type: "dashboard" };
-  
-  // Track if we're handling a popstate event to avoid duplicate history entries
-  private handlingPopState = false;
 
   get activeTab(): string {
     return this.tabState.type;
   }
-  
+
+  constructor() {
+    super();
+    this.initFromUrl();
+  }
+
   connectedCallback() {
     super.connectedCallback();
-    
-    // Initialize navigation from URL on first load
-    this.initFromUrl();
-    
-    // Set up popstate listener for browser back/forward button
-    window.addEventListener('popstate', this.handlePopState.bind(this));
+    window.addEventListener("popstate", this.handlePopState.bind(this));
   }
-  
+
   disconnectedCallback() {
     super.disconnectedCallback();
-    
-    // Clean up event listener
-    window.removeEventListener('popstate', this.handlePopState.bind(this));
+    window.removeEventListener("popstate", this.handlePopState.bind(this));
   }
 
   static styles = css`
@@ -70,9 +65,32 @@ export class ChainRater extends LitElement {
       max-width: 1200px;
       margin: 0 auto;
     }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 200px;
+      color: #999;
+    }
   `;
 
   render() {
+    const main = this.blockchainService.ready
+      ? html`
+          <main>
+            <div
+              class="container"
+              @view-uri=${this.handleViewURI}
+              @view-account=${this.handleViewAccount}
+              @rate-item=${this.handleRateItem}
+            >
+              ${this.renderActiveTab()}
+            </div>
+          </main>
+        `
+      : html`<div class="loading">Please connect wallet</div>`;
+
     return html`
       <header-nav
         .activeTab=${this.activeTab}
@@ -82,17 +100,7 @@ export class ChainRater extends LitElement {
         @wallet-connected=${this.handleWalletConnected}
         @wallet-disconnected=${this.handleWalletDisconnected}
       ></header-nav>
-
-      <main>
-        <div
-          class="container"
-          @view-uri=${this.handleViewURI}
-          @view-account=${this.handleViewAccount}
-          @rate-item=${this.handleRateItem}
-        >
-          ${this.renderActiveTab()}
-        </div>
-      </main>
+      ${main}
     `;
   }
 
@@ -167,7 +175,7 @@ export class ChainRater extends LitElement {
       default:
         newState = { type: "dashboard" };
     }
-    
+
     this.updateTabState(newState);
   }
 
@@ -203,38 +211,20 @@ export class ChainRater extends LitElement {
       type: "rate",
     });
   }
-  
+
   /**
    * Updates tab state and pushes to browser history
    */
   private updateTabState(newState: TabState) {
-    // Don't push to history if we're handling a popstate event
-    if (!this.handlingPopState) {
-      // Create URL for the current state
-      const url = this.createUrlFromState(newState);
-      
-      // Push new state to history
-      window.history.pushState(
-        { tabState: newState },
-        '',
-        url
-      );
-    }
-    
-    // Update component state
     this.tabState = newState;
-    
-    // Reset flag after state update
-    this.handlingPopState = false;
+    const url = this.createUrlFromState(newState);
+    window.history.pushState({ tabState: newState }, "", url);
   }
-  
+
   /**
    * Handles browser back/forward navigation
    */
   private handlePopState(event: PopStateEvent) {
-    // Set flag to prevent pushing another history entry
-    this.handlingPopState = true;
-    
     if (event.state?.tabState) {
       // Restore state from history
       this.tabState = event.state.tabState;
@@ -243,38 +233,37 @@ export class ChainRater extends LitElement {
       this.tabState = { type: "dashboard" };
     }
   }
-  
+
   /**
    * Initializes app state from URL on first load
    */
   private initFromUrl() {
     // Get current pathname
     const path = window.location.pathname;
-    
+
     // Try to parse state from URL
     const initialState = this.parseStateFromUrl(path);
-    
+
     if (initialState) {
       // Set initial state without pushing to history
-      this.handlingPopState = true;
       this.tabState = initialState;
-      
+
       // Replace current history entry with proper state object
       window.history.replaceState(
         { tabState: initialState },
-        '',
-        this.createUrlFromState(initialState)
+        "",
+        this.createUrlFromState(initialState),
       );
     } else {
       // If URL doesn't match any known pattern, push dashboard state
       window.history.replaceState(
         { tabState: this.tabState },
-        '',
-        this.createUrlFromState(this.tabState)
+        "",
+        this.createUrlFromState(this.tabState),
       );
     }
   }
-  
+
   /**
    * Gets the base path for the application
    * Supports deployment in subdirectories
@@ -282,109 +271,113 @@ export class ChainRater extends LitElement {
   private getBasePath(): string {
     // This could be expanded to check for a BASE_PATH env variable or config
     // For now, just use root path
-    return '';
+    return "";
   }
-  
+
   /**
    * Creates a URL string from a tab state
    */
   private createUrlFromState(state: TabState): string {
     const basePath = this.getBasePath();
-    
+
     switch (state.type) {
       case "dashboard":
         return `${basePath}/`;
-      
+
       case "people":
-        return state.selectedAccount 
+        return state.selectedAccount
           ? `${basePath}/people/${encodeURIComponent(state.selectedAccount)}`
           : `${basePath}/people`;
-      
+
       case "uris":
         return state.uriHash
           ? `${basePath}/uris/${encodeURIComponent(state.uriHash)}`
           : `${basePath}/uris`;
-      
+
       case "ratings":
         return `${basePath}/ratings`;
-      
+
       case "about":
         return `${basePath}/about`;
-      
+
       case "rate":
         return `${basePath}/rate`;
-      
+
       case "myratings":
         return `${basePath}/myratings`;
-      
+
       default:
         return `${basePath}/`;
     }
   }
-  
+
   /**
    * Parses a URL path into a tab state
    */
   private parseStateFromUrl(path: string): TabState | null {
     const basePath = this.getBasePath();
-    
+
     // Remove base path if present
     let pathWithoutBase = path;
     if (basePath && path.startsWith(basePath)) {
       pathWithoutBase = path.slice(basePath.length);
     }
-    
+
     // Remove trailing slash if present
-    const normalizedPath = pathWithoutBase.endsWith('/') && pathWithoutBase !== '/' 
-      ? pathWithoutBase.slice(0, -1) 
-      : pathWithoutBase;
-    
+    const normalizedPath =
+      pathWithoutBase.endsWith("/") && pathWithoutBase !== "/"
+        ? pathWithoutBase.slice(0, -1)
+        : pathWithoutBase;
+
     // Split path into segments
-    const segments = normalizedPath.split('/').filter(Boolean);
-    
+    const segments = normalizedPath.split("/").filter(Boolean);
+
     // Root path maps to dashboard
-    if (normalizedPath === '/' || segments.length === 0) {
+    if (normalizedPath === "/" || segments.length === 0) {
       return { type: "dashboard" };
     }
-    
+
     // First segment determines tab type
     const [tabType, param] = segments;
-    
+
     switch (tabType) {
       case "dashboard":
         return { type: "dashboard" };
-      
+
       case "people":
         return param
-          ? { type: "people", selectedAccount: decodeURIComponent(param) as Address }
+          ? {
+              type: "people",
+              selectedAccount: decodeURIComponent(param) as Address,
+            }
           : { type: "people" };
-      
+
       case "uris":
         if (param) {
           // When we have a uriHash param, we need to try to find the URI
-          // This is a simplified approach - in a real implementation, you might 
+          // This is a simplified approach - in a real implementation, you might
           // want to look up the URI from the uriHash by querying your data
           const decodedHash = decodeURIComponent(param);
-          return { 
-            type: "uris", 
+          return {
+            type: "uris",
             uriHash: decodedHash,
             // URI will be null initially, the component will need to look it up
           };
         }
         return { type: "uris" };
-      
+
       case "ratings":
         return { type: "ratings" };
-      
+
       case "about":
         return { type: "about" };
-      
+
       case "rate":
         return { type: "rate" };
-      
+
       case "myratings":
         return { type: "myratings", account: this.account as Address };
-      
+
       default:
         // No matching route found
         return null;

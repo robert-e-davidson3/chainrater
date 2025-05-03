@@ -5,7 +5,7 @@ import {
   BlockchainService,
   type Rating,
 } from "../services/blockchain.service.js";
-import { formatETH, MissingContextError } from "../utils/blockchain.utils.js";
+import { MissingContextError } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { Address } from "viem";
 import { ListenerManager } from "../utils/listener.utils.js";
@@ -32,9 +32,9 @@ export class PeoplePage extends LitElement {
   @state() private accounts: AccountSummary[] = [];
   @state() private searchInput = "";
   @state() private loading = true;
-  @state() private sortBy: 'ratings' | 'stake' = 'ratings';
-  @state() private sortDirection: 'asc' | 'desc' = 'desc';
-  @state() private expiryFilter: 'all' | 'expired' | 'active' = 'all';
+  @state() private sortBy: "ratings" | "stake" = "ratings";
+  @state() private sortDirection: "asc" | "desc" = "desc";
+  @state() private expiryFilter: "all" | "expired" | "active" = "all";
   @state() private uriFilter = "";
 
   @property({ type: String }) selectedAccount: Address | null = null;
@@ -215,35 +215,38 @@ export class PeoplePage extends LitElement {
       color: #f1c40f;
       font-weight: bold;
     }
-    
+
     .filter-controls {
       display: flex;
       flex-direction: column;
       gap: 1rem;
       margin-bottom: 1rem;
     }
-    
+
     .filter-row {
       display: flex;
       flex-wrap: wrap;
       gap: 1.5rem;
       margin-bottom: 0.5rem;
     }
-    
-    .expiry-filter, .owner-filter, .sort-filter, .uri-filter {
+
+    .expiry-filter,
+    .owner-filter,
+    .sort-filter,
+    .uri-filter {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 0.5rem;
     }
-    
+
     .uri-input {
       padding: 0.5rem;
       border: 1px solid #ddd;
       border-radius: 4px;
       min-width: 200px;
     }
-    
+
     .filter-label {
       font-weight: 500;
       color: #666;
@@ -251,7 +254,7 @@ export class PeoplePage extends LitElement {
       display: flex;
       align-items: center;
     }
-    
+
     .direction-button {
       width: 32px;
       height: 32px;
@@ -269,18 +272,20 @@ export class PeoplePage extends LitElement {
       transition: background-color 0.2s;
       margin-right: 0.5rem;
     }
-    
+
     .direction-button:hover {
       background-color: #2980b9;
     }
-    
-    .sort-options, .filter-options {
+
+    .sort-options,
+    .filter-options {
       display: flex;
       gap: 0.75rem;
       flex-wrap: wrap;
     }
-    
-    .sort-button, .filter-button {
+
+    .sort-button,
+    .filter-button {
       background-color: #f5f5f5;
       color: #666;
       border: 1px solid #ddd;
@@ -290,18 +295,19 @@ export class PeoplePage extends LitElement {
       transition: all 0.2s;
       font-size: 0.9rem;
     }
-    
-    .sort-button.active, .filter-button.active {
+
+    .sort-button.active,
+    .filter-button.active {
       background-color: #3498db;
       color: white;
       border-color: #3498db;
     }
-    
+
     .filter-button.active[data-filter="expired"] {
       background-color: #e74c3c;
       border-color: #e74c3c;
     }
-    
+
     .filter-button.active[data-filter="active"] {
       background-color: #2ecc71;
       border-color: #2ecc71;
@@ -319,7 +325,7 @@ export class PeoplePage extends LitElement {
       this.unloadAccounts();
     });
 
-    this.loadAccounts();
+    if (this.blockchainService.ready) this.loadAccounts();
   }
 
   disconnectedCallback() {
@@ -344,61 +350,73 @@ export class PeoplePage extends LitElement {
             @input=${this.handleSearchInputChange}
           />
         </div>
-        
+
         <div class="filter-controls">
           <div class="sort-filter">
             <span class="filter-label">Sort:</span>
-            <button 
+            <button
               class="direction-button"
               @click=${this.toggleSortDirection}
-              title="${this.sortDirection === 'desc' ? 'Descending' : 'Ascending'}"
+              title="${this.sortDirection === "desc"
+                ? "Descending"
+                : "Ascending"}"
             >
-              ${this.sortDirection === 'desc' ? '↓' : '↑'}
+              ${this.sortDirection === "desc" ? "↓" : "↑"}
             </button>
             <div class="sort-options">
-              <button 
-                class="sort-button ${this.sortBy === 'ratings' ? 'active' : ''}"
-                @click=${() => this.setSortBy('ratings')}
+              <button
+                class="sort-button ${this.sortBy === "ratings" ? "active" : ""}"
+                @click=${() => this.setSortBy("ratings")}
               >
-                ${this.sortDirection === 'desc' ? 'Most Ratings' : 'Fewest Ratings'}
+                ${this.sortDirection === "desc"
+                  ? "Most Ratings"
+                  : "Fewest Ratings"}
               </button>
-              <button 
-                class="sort-button ${this.sortBy === 'stake' ? 'active' : ''}"
-                @click=${() => this.setSortBy('stake')}
+              <button
+                class="sort-button ${this.sortBy === "stake" ? "active" : ""}"
+                @click=${() => this.setSortBy("stake")}
               >
-                ${this.sortDirection === 'desc' ? 'Highest Stake' : 'Lowest Stake'}
+                ${this.sortDirection === "desc"
+                  ? "Highest Stake"
+                  : "Lowest Stake"}
               </button>
             </div>
           </div>
-          
+
           <div class="filter-row">
             <div class="expiry-filter">
               <span class="filter-label">Status:</span>
               <div class="filter-options">
-                <button 
-                  class="filter-button ${this.expiryFilter === 'all' ? 'active' : ''}"
+                <button
+                  class="filter-button ${this.expiryFilter === "all"
+                    ? "active"
+                    : ""}"
                   data-filter="all"
-                  @click=${() => this.setExpiryFilter('all')}
+                  @click=${() => this.setExpiryFilter("all")}
                 >
                   All Status
                 </button>
-                <button 
-                  class="filter-button ${this.expiryFilter === 'active' ? 'active' : ''}"
+                <button
+                  class="filter-button ${this.expiryFilter === "active"
+                    ? "active"
+                    : ""}"
                   data-filter="active"
-                  @click=${() => this.setExpiryFilter('active')}
+                  @click=${() => this.setExpiryFilter("active")}
                 >
                   With Active
                 </button>
-                <button 
-                  class="filter-button ${this.expiryFilter === 'expired' ? 'active' : ''}"
+                <button
+                  class="filter-button ${this.expiryFilter === "expired"
+                    ? "active"
+                    : ""}"
                   data-filter="expired"
-                  @click=${() => this.setExpiryFilter('expired')}
+                  @click=${() => this.setExpiryFilter("expired")}
                 >
                   With Expired
                 </button>
               </div>
             </div>
-            
+
             <div class="uri-filter">
               <span class="filter-label">URI:</span>
               <input
@@ -433,7 +451,7 @@ export class PeoplePage extends LitElement {
 
     // Sort the filtered accounts
     const sortedAccounts = this.sortAccounts(filteredAccounts);
-    
+
     const rows = sortedAccounts.map(
       (account) => html`
         <tr
@@ -508,93 +526,99 @@ export class PeoplePage extends LitElement {
     const input = e.target as HTMLInputElement;
     this.searchInput = input.value;
   }
-  
+
   private handleUriFilterChange(e: Event) {
     const input = e.target as HTMLInputElement;
     this.uriFilter = input.value;
     this.requestUpdate();
   }
-  
+
   private getFilteredAccounts(): AccountSummary[] {
     let filteredAccounts = this.accounts;
-    
+
     // Apply address search filter
     if (this.searchInput) {
-      filteredAccounts = filteredAccounts.filter(account => 
-        account.address.toLowerCase().includes(this.searchInput.toLowerCase())
+      filteredAccounts = filteredAccounts.filter((account) =>
+        account.address.toLowerCase().includes(this.searchInput.toLowerCase()),
       );
     }
-    
+
     // Apply URI filter
     if (this.uriFilter) {
       const uriLower = this.uriFilter.toLowerCase();
-      filteredAccounts = filteredAccounts.filter(account => 
-        account.ratings.some(rating => 
-          rating.uri.toLowerCase().includes(uriLower)
-        )
+      filteredAccounts = filteredAccounts.filter((account) =>
+        account.ratings.some((rating) =>
+          rating.uri.toLowerCase().includes(uriLower),
+        ),
       );
     }
-    
+
     // Apply expiry filter
-    if (this.expiryFilter !== 'all') {
-      filteredAccounts = filteredAccounts.filter(account => {
-        const hasMatchingRatings = account.ratings.some(rating => 
-          this.expiryFilter === 'expired' ? rating.isExpired : !rating.isExpired
+    if (this.expiryFilter !== "all") {
+      filteredAccounts = filteredAccounts.filter((account) => {
+        const hasMatchingRatings = account.ratings.some((rating) =>
+          this.expiryFilter === "expired"
+            ? rating.isExpired
+            : !rating.isExpired,
         );
         return hasMatchingRatings;
       });
     }
-    
+
     return filteredAccounts;
   }
-  
+
   private sortAccounts(accounts: AccountSummary[]): AccountSummary[] {
     if (!accounts.length) return accounts;
-    
+
     // Create a new array to hold the sorted accounts
     let sortedAccounts = [...accounts];
-    
+
     // Define the comparison function based on sortBy and sortDirection
     let compare: (a: AccountSummary, b: AccountSummary) => number;
-    
+
     switch (this.sortBy) {
-      case 'ratings':
+      case "ratings":
         // Sort by number of ratings
         compare = (a, b) => a.ratingCount - b.ratingCount;
         break;
-        
-      case 'stake':
+
+      case "stake":
         // Sort by total stake amount
         compare = (a, b) => {
           // Convert BigInt to string for comparison since we just need relative order
-          return a.totalStake > b.totalStake ? 1 : a.totalStake < b.totalStake ? -1 : 0;
+          return a.totalStake > b.totalStake
+            ? 1
+            : a.totalStake < b.totalStake
+              ? -1
+              : 0;
         };
         break;
-        
+
       default:
         // Default to ratings count
         compare = (a, b) => a.ratingCount - b.ratingCount;
     }
-    
+
     // Apply sort and handle direction
     return sortedAccounts.sort((a, b) => {
       // If ascending, use the comparison function as-is
       // If descending, negate the result to reverse the order
-      return this.sortDirection === 'asc' ? compare(a, b) : -compare(a, b);
+      return this.sortDirection === "asc" ? compare(a, b) : -compare(a, b);
     });
   }
-  
-  private setSortBy(sortType: 'ratings' | 'stake') {
+
+  private setSortBy(sortType: "ratings" | "stake") {
     this.sortBy = sortType;
     this.requestUpdate();
   }
-  
+
   private toggleSortDirection() {
-    this.sortDirection = this.sortDirection === 'desc' ? 'asc' : 'desc';
+    this.sortDirection = this.sortDirection === "desc" ? "asc" : "desc";
     this.requestUpdate();
   }
-  
-  private setExpiryFilter(filter: 'all' | 'expired' | 'active') {
+
+  private setExpiryFilter(filter: "all" | "expired" | "active") {
     this.expiryFilter = filter;
     this.requestUpdate();
   }
@@ -658,21 +682,21 @@ export class PeoplePage extends LitElement {
         validRatings.length > 0 ? totalScore / validRatings.length : 0;
 
       const isCurrentUser = currentUserAddress === address.toLowerCase();
-      
+
       // Process ratings to get URI and expiration info
-      const processedRatings = validRatings.map(rating => {
+      const processedRatings = validRatings.map((rating) => {
         const { uriHash, stake, posted } = rating as any;
         const uri = this.blockchainService.ratings.getUriFromHash(uriHash);
         const expirationTime = new Date(
-          Number(1000n * (posted + stake / stakePerSecond))
+          Number(1000n * (posted + stake / stakePerSecond)),
         );
         const isExpired = expirationTime.getTime() <= now;
-        
+
         return {
           uri,
           uriHash,
           expirationTime,
-          isExpired
+          isExpired,
         };
       });
 
@@ -682,7 +706,7 @@ export class PeoplePage extends LitElement {
         totalStake,
         averageScore,
         isCurrentUser,
-        ratings: processedRatings
+        ratings: processedRatings,
       });
     });
 

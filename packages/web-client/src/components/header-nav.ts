@@ -44,7 +44,7 @@ export class HeaderNav extends LitElement {
       font-weight: bold;
       color: #3498db;
     }
-    
+
     .product-name {
       cursor: pointer;
       text-decoration: none;
@@ -93,7 +93,7 @@ export class HeaderNav extends LitElement {
       position: relative;
       cursor: pointer;
     }
-    
+
     .address:hover::after {
       content: attr(data-full-address);
       position: absolute;
@@ -138,8 +138,13 @@ export class HeaderNav extends LitElement {
         <div class="branding">
           <a
             class="product-name"
-            @click=${() => this.switchTab("dashboard")}
-            >ChainRater</a>
+            href="/"
+            @click=${(e: CustomEvent) => {
+              e.preventDefault();
+              this.switchTab("dashboard");
+            }}
+            >ChainRater</a
+          >
         </div>
 
         <nav>
@@ -177,7 +182,10 @@ export class HeaderNav extends LitElement {
 
   renderWalletButton() {
     if (this.isConnected) {
-      return html`<address-display class="address" .address=${this.accountAddress}></address-display>
+      return html`<address-display
+          class="address"
+          .address=${this.accountAddress}
+        ></address-display>
         <button @click=${this.disconnect}>Disconnect</button>`;
     } else if (this.isConnecting) {
       return html`<button disabled>Connecting...</button>`;
