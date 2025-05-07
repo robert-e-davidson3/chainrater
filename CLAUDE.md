@@ -82,3 +82,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Wallet Nonce Issues**: Accounts used by the PopulateWithTestData script will have transaction history unknown to MetaMask/Brave Wallet. This causes nonce mismatches when the wallet tries to use these accounts (it starts at too low a nonce). Use fresh accounts in the wallet that weren't used by the script.
 - **Contract Interaction Failures**: If contract interactions fail silently, check that the ABI matches the deployed contract exactly.
 - **URI vs URL**: ChainRater users rate pseudo-URIs (Uniform Resource Identifiers) not URLs. I-vs-L.
+
+# Ideas
+
+## Limit cleanup to involved accounts
+
+Multiply how much is staked by how many days it was staked, for each user.
+Limt how much you can clean up from other accounts based on this.
+So the people who use the app can get paid but bots need to invest more than is
+worthwhile for them. Hard to find the right ratio but maybe it exists.
+
+Like... the time value of money means that staking can be net-negative... but if you like
+the app anyway then for you it's net-positive. So, set the stake requirement for cleanup
+such that in say 99% of cases disinterested third parties have no reason to get involved.
