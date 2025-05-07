@@ -11,6 +11,7 @@ import "./uris-page.js";
 import "./ratings-page.js";
 import {
   BlockchainService,
+  MissingWeb3Error,
   type Rating,
 } from "../services/blockchain.service.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
@@ -19,7 +20,7 @@ import { Address } from "viem";
 @customElement("chain-rater")
 export class ChainRater extends LitElement {
   @provide({ context: blockchainServiceContext })
-  blockchainService: BlockchainService = new BlockchainService();
+  blockchainService?: BlockchainService;
 
   @property({ type: Boolean }) isConnected = false;
   @property({ type: String }) account = "";
@@ -32,6 +33,11 @@ export class ChainRater extends LitElement {
 
   constructor() {
     super();
+    try {
+      this.blockchainService = new BlockchainService();
+    } catch (e: unknown) {
+      if (!(e instanceof MissingWeb3Error)) throw e;
+    }
     this.initFromUrl();
   }
 
@@ -76,7 +82,13 @@ export class ChainRater extends LitElement {
   `;
 
   render() {
-    const main = this.blockchainService.ready
+    const blockchainService = this.blockchainService;
+    if (!blockchainService)
+      return html`<div class="loading">
+        Web3 wallet needed - maybe install MetaMask?
+      </div>`;
+
+    const main = blockchainService.ready
       ? html`
           <main>
             <div
