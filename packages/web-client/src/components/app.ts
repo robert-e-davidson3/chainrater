@@ -83,13 +83,9 @@ export class ChainRater extends LitElement {
 
   render() {
     const blockchainService = this.blockchainService;
-    if (!blockchainService)
-      return html`<div class="loading">
-        Web3 wallet needed - maybe install MetaMask?
-      </div>`;
 
     const main =
-      blockchainService.ready || this.activeTab === "about"
+      blockchainService?.ready || this.activeTab === "about"
         ? html`
             <main>
               <div
