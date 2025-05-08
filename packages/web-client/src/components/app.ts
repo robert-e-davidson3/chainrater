@@ -88,20 +88,21 @@ export class ChainRater extends LitElement {
         Web3 wallet needed - maybe install MetaMask?
       </div>`;
 
-    const main = blockchainService.ready
-      ? html`
-          <main>
-            <div
-              class="container"
-              @view-uri=${this.handleViewURI}
-              @view-account=${this.handleViewAccount}
-              @rate-item=${this.handleRateItem}
-            >
-              ${this.renderActiveTab()}
-            </div>
-          </main>
-        `
-      : html`<div class="loading">Please connect wallet</div>`;
+    const main =
+      blockchainService.ready || this.activeTab === "about"
+        ? html`
+            <main>
+              <div
+                class="container"
+                @view-uri=${this.handleViewURI}
+                @view-account=${this.handleViewAccount}
+                @rate-item=${this.handleRateItem}
+              >
+                ${this.renderActiveTab()}
+              </div>
+            </main>
+          `
+        : html`<div class="loading">Please connect wallet</div>`;
 
     return html`
       <header-nav
