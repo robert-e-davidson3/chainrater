@@ -1,4 +1,4 @@
-import { LitElement, html, css } from "lit";
+import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import {
@@ -11,6 +11,7 @@ import { MissingContextError } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 
 import "./address-display.js";
+import { ListenerManager } from "../utils/listener.utils.js";
 
 @customElement("header-nav")
 export class HeaderNav extends LitElement {
@@ -23,11 +24,8 @@ export class HeaderNav extends LitElement {
     return this._blockchainService;
   }
 
-  @property({ type: Boolean, reflect: true })
-  isConnected = false;
   @property({ type: String }) activeTab = "dashboard";
   @property({ type: String }) accountAddress = "";
-  @state() private isConnecting = false;
   @state() private isMobileMenuOpen = false;
 
   static styles = css`
@@ -85,6 +83,16 @@ export class HeaderNav extends LitElement {
       width: 100%;
       height: 2px;
       background-color: #3498db;
+    }
+
+    nav a.disabled {
+      color: #95a5a6;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    nav a.disabled::after {
+      background-color: #95a5a6;
     }
 
     .wallet {
@@ -264,47 +272,65 @@ export class HeaderNav extends LitElement {
   `;
 
   render() {
+    const rateClass =
+      this.blockchainService.state !== "writeable"
+        ? "disabled"
+        : this.activeTab === "rate"
+          ? "active"
+          : nothing;
+    const rateClick =
+      this.blockchainService.state !== "writeable"
+        ? () => {}
+        : () => this.switchTab("rate");
+    const rateTitle =
+      this.blockchainService.state !== "writeable"
+        ? "Please connect your wallet to rate items."
+        : nothing;
+
+    const nav = html`<nav>
+      <a
+        class="${this.activeTab === "people" ? "active" : nothing}"
+        @click=${() => this.switchTab("people")}
+        >People</a
+      >
+      <a
+        class="${this.activeTab === "uris" ? "active" : nothing}"
+        @click=${() => this.switchTab("uris")}
+        >URIs</a
+      >
+      <a
+        class="${this.activeTab === "ratings" ? "active" : nothing}"
+        @click=${() => this.switchTab("ratings")}
+        >Ratings</a
+      >
+      <a
+        ?disabled=${this.blockchainService.state !== "writeable"}
+        class="${rateClass}"
+        title=${rateTitle}
+        @click=${rateClick}
+        >Rate an Item</a
+      >
+      <a
+        class="${this.activeTab === "about" ? "active" : nothing}"
+        @click=${() => this.switchTab("about")}
+        >About</a
+      >
+    </nav>`;
+
     return html`
       <header>
         <div class="branding">
           <a
             class="product-name"
             href="/"
-            @click=${(e: Event) => {
-              e.preventDefault();
+            @click=${() => {
               this.switchTab("dashboard");
             }}
             >ChainRater</a
           >
         </div>
 
-        <nav>
-          <a
-            class="${this.activeTab === "people" ? "active" : ""}"
-            @click=${() => this.switchTab("people")}
-            >People</a
-          >
-          <a
-            class="${this.activeTab === "uris" ? "active" : ""}"
-            @click=${() => this.switchTab("uris")}
-            >URIs</a
-          >
-          <a
-            class="${this.activeTab === "ratings" ? "active" : ""}"
-            @click=${() => this.switchTab("ratings")}
-            >Ratings</a
-          >
-          <a
-            class="${this.activeTab === "rate" ? "active" : ""}"
-            @click=${() => this.switchTab("rate")}
-            >Rate an Item</a
-          >
-          <a
-            class="${this.activeTab === "about" ? "active" : ""}"
-            @click=${() => this.switchTab("about")}
-            >About</a
-          >
-        </nav>
+        ${nav}
 
         <div class="wallet">${this.renderWalletButton()}</div>
 
@@ -322,62 +348,51 @@ export class HeaderNav extends LitElement {
 
       <!-- Mobile menu -->
       <div class="mobile-menu ${this.isMobileMenuOpen ? "open" : ""}">
-        <nav>
-          <a
-            class="${this.activeTab === "people" ? "active" : ""}"
-            @click=${() => this.handleMobileNavClick("people")}
-            >People</a
-          >
-          <a
-            class="${this.activeTab === "uris" ? "active" : ""}"
-            @click=${() => this.handleMobileNavClick("uris")}
-            >URIs</a
-          >
-          <a
-            class="${this.activeTab === "ratings" ? "active" : ""}"
-            @click=${() => this.handleMobileNavClick("ratings")}
-            >Ratings</a
-          >
-          <a
-            class="${this.activeTab === "rate" ? "active" : ""}"
-            @click=${() => this.handleMobileNavClick("rate")}
-            >Rate an Item</a
-          >
-          <a
-            class="${this.activeTab === "about" ? "active" : ""}"
-            @click=${() => this.handleMobileNavClick("about")}
-            >About</a
-          >
-        </nav>
-
+        ${nav}
         <div class="wallet">${this.renderWalletButton()}</div>
       </div>
     `;
   }
 
   renderWalletButton() {
-    if (this.isConnected) {
+    if (this.blockchainService.state === "writeable") {
       return html`<address-display
           class="address"
           .address=${this.accountAddress}
         ></address-display>
         <button @click=${this.disconnect}>Disconnect</button>`;
-    } else if (this.isConnecting) {
+    } else if (this.blockchainService.state === "connecting") {
       return html`<button disabled>Connecting...</button>`;
     } else {
       return html`<button @click=${this.connect}>Connect Wallet</button>`;
     }
   }
 
+  private listeners = new ListenerManager();
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.listeners.add(this.blockchainService, "stateChanged", () => {
+      this.requestUpdate();
+    });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.listeners.clear();
+  }
+
   async connect() {
-    this.isConnecting = true;
+    // Can't connect more than the default.
+    if (!window.ethereum) {
+      alert("Please install MetaMask or another web3 provider.");
+      return;
+    }
 
     try {
       await this.blockchainService.connect();
       this.accountAddress = this.blockchainService.account ?? "";
-      this.isConnected = true;
 
-      // Dispatch connected event
       this.dispatchEvent(
         new CustomEvent("wallet-connected", {
           detail: { account: this.accountAddress },
@@ -402,14 +417,11 @@ export class HeaderNav extends LitElement {
 
       console.error(msg);
       alert(msg);
-    } finally {
-      this.isConnecting = false;
     }
   }
 
   async disconnect() {
     this.blockchainService.disconnect();
-    this.isConnected = false;
     this.accountAddress = "";
 
     // Dispatch disconnected event
@@ -430,6 +442,9 @@ export class HeaderNav extends LitElement {
         composed: true,
       }),
     );
+    // mobile cleanup (whether or not this is a mobile click)
+    this.isMobileMenuOpen = false;
+    document.body.style.overflow = "";
   }
 
   /**
@@ -444,14 +459,5 @@ export class HeaderNav extends LitElement {
     } else {
       document.body.style.overflow = "";
     }
-  }
-
-  /**
-   * Handles mobile navigation clicks - switches tab and closes the menu
-   */
-  handleMobileNavClick(tab: string) {
-    this.switchTab(tab);
-    this.isMobileMenuOpen = false;
-    document.body.style.overflow = "";
   }
 }

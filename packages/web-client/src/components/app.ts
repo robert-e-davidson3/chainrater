@@ -1,5 +1,5 @@
 import { LitElement, html, css } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, state } from "lit/decorators.js";
 import { provide } from "@lit/context";
 import "./header-nav.js";
 import "./dashboard.js";
@@ -11,19 +11,16 @@ import "./uris-page.js";
 import "./ratings-page.js";
 import {
   BlockchainService,
-  MissingWeb3Error,
   type Rating,
 } from "../services/blockchain.service.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { Address } from "viem";
+import { ListenerManager } from "../utils/listener.utils.js";
 
 @customElement("chain-rater")
 export class ChainRater extends LitElement {
   @provide({ context: blockchainServiceContext })
-  blockchainService?: BlockchainService;
-
-  @property({ type: Boolean }) isConnected = false;
-  @property({ type: String }) account = "";
+  blockchainService: BlockchainService;
 
   @state() private tabState: TabState = { type: "dashboard" };
 
@@ -33,21 +30,27 @@ export class ChainRater extends LitElement {
 
   constructor() {
     super();
-    try {
-      this.blockchainService = new BlockchainService();
-    } catch (e: unknown) {
-      if (!(e instanceof MissingWeb3Error)) throw e;
-    }
+    this.blockchainService = new BlockchainService();
     this.initFromUrl();
   }
 
+  async firstUpdated() {
+    await this.blockchainService.connect();
+  }
+
+  private listeners = new ListenerManager();
+
   connectedCallback() {
     super.connectedCallback();
+    this.listeners.add(this.blockchainService, "stateChanged", () => {
+      this.requestUpdate();
+    });
     window.addEventListener("popstate", this.handlePopState.bind(this));
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this.listeners.clear();
     window.removeEventListener("popstate", this.handlePopState.bind(this));
   }
 
@@ -103,11 +106,8 @@ export class ChainRater extends LitElement {
     return html`
       <header-nav
         .activeTab=${this.activeTab}
-        .isConnected=${this.isConnected}
-        .accountAddress=${this.account}
+        .accountAddress=${this.blockchainService.account}
         @tab-changed=${this.handleTabChange}
-        @wallet-connected=${this.handleWalletConnected}
-        @wallet-disconnected=${this.handleWalletDisconnected}
       ></header-nav>
       ${main}
     `;
@@ -176,7 +176,10 @@ export class ChainRater extends LitElement {
         newState = { type: "about" };
         break;
       case "myratings":
-        newState = { type: "myratings", account: this.account as Address };
+        newState = {
+          type: "myratings",
+          account: this.blockchainService.account as Address,
+        };
         break;
       case "rate":
         newState = { type: "rate" };
@@ -186,16 +189,6 @@ export class ChainRater extends LitElement {
     }
 
     this.updateTabState(newState);
-  }
-
-  handleWalletConnected(e: CustomEvent) {
-    this.isConnected = true;
-    this.account = e.detail.account;
-  }
-
-  handleWalletDisconnected() {
-    this.isConnected = false;
-    this.account = "";
   }
 
   handleViewURI(e: CustomEvent) {
@@ -385,7 +378,10 @@ export class ChainRater extends LitElement {
         return { type: "rate" };
 
       case "myratings":
-        return { type: "myratings", account: this.account as Address };
+        return {
+          type: "myratings",
+          account: this.blockchainService.account as Address,
+        };
 
       default:
         // No matching route found

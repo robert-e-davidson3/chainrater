@@ -11,6 +11,8 @@ import {
   WatchContractEventOnLogsFn,
   Hex,
   EIP1193Provider,
+  ProviderRpcError,
+  ProviderConnectInfo,
 } from "viem";
 import { mainnet, sepolia, foundry, polygon } from "viem/chains";
 import { hashURI } from "../utils/blockchain.utils.js";
@@ -22,34 +24,35 @@ import deployments from "../../src/deployments.js";
 
 export class BlockchainService extends EventEmitter {
   private client: Clients | null = null;
-  private _account?: Address;
+
+  private _state: BlockchainServiceState = "disconnected";
+  get state(): BlockchainServiceState {
+    return this._state;
+  }
+  private set state(newState: BlockchainServiceState) {
+    this.emit("stateChanged", { old: this._state, new: newState });
+    this._state = newState;
+  }
+  get ready(): boolean {
+    return this.state === "readonly" || this.state === "writeable";
+  }
+
   private _chainId: ChainId | null = null;
+  get chainId(): ChainId | null {
+    return this._chainId;
+  }
+  set chainId(chainId: ChainId) {
+    this.reconnect(chainId);
+  }
 
   private contracts?: {
     ratings: Contract.Ratings.Ratings;
   };
 
-  constructor() {
-    super();
-    const ethereum = getEthereum();
-    if (!ethereum) throw new MissingWeb3Error();
-
-    // Setup event listeners for MetaMask etc
-    ethereum.on("accountsChanged", (accounts: Address[]) => {
-      this.account = accounts[0];
-    });
-
-    ethereum.on("chainChanged", (chainIdHex: string) => {
-      const chainId = parseInt(chainIdHex, 16);
-      this.reconnect(chainId);
-    });
+  private _account?: Address;
+  get account(): Address | undefined {
+    return this._account;
   }
-
-  private _ready = false;
-  get ready(): boolean {
-    return this._ready;
-  }
-
   private set account(account: Address | undefined) {
     if (account) console.log("Account changed:", account);
     else console.log("Account cleared");
@@ -60,10 +63,6 @@ export class BlockchainService extends EventEmitter {
     this.emit("accountChanged", account);
   }
 
-  get account(): Address | undefined {
-    return this._account;
-  }
-
   get ratings(): Contract.Ratings.Ratings {
     if (!this.contracts) throw new NotConnectedError();
     return this.contracts.ratings;
@@ -71,47 +70,63 @@ export class BlockchainService extends EventEmitter {
 
   // Sets all state dependent on connection.
   async connect(chainId?: number) {
-    this._ready = false;
+    this.state = "connecting";
 
     const ethereum = getEthereum();
-    if (!ethereum) throw new MissingWeb3Error();
 
-    const validChainId: ChainId =
-      chainId === undefined
-        ? await this.getChainId(ethereum)
-        : validChainIdOrThrow(chainId);
-    this._chainId = validChainId;
+    if (ethereum) {
+      ethereum.on("connect", (info: ProviderConnectInfo) => {
+        const chainId = parseInt(info.chainId, 16);
+        this.reconnect(chainId);
+      });
+      ethereum.on("chainChanged", (chainIdHex: string) => {
+        const chainId = parseInt(chainIdHex, 16);
+        this.reconnect(chainId);
+      });
+      ethereum.on("disconnect", (error: ProviderRpcError) => {
+        console.warn(String(error));
+        this.disconnect();
+      });
+      ethereum.on("accountsChanged", (accounts: Address[]) => {
+        this.account = accounts[0];
+      });
+    }
 
-    const chain = getChainFromId(validChainId);
+    if (chainId) this._chainId = validChainIdOrThrow(chainId);
+    else if (ethereum) this._chainId = await this.getChainId(ethereum);
+    else this._chainId = polygon.id; // Default to Polygon
 
-    console.log(`Connecting to chain ${chain.name} (${validChainId})`);
+    const chain = getChainFromId(this._chainId);
 
-    const clients = buildClients(chain, ethereum);
-    this.client = clients;
+    console.info(`Connecting to chain ${chain.name} (${this._chainId})`);
 
-    if (this.client.wallet.account) {
-      this._account = this.client.wallet.account.address;
-    } else {
-      const addresses = await this.client.wallet.requestAddresses();
-      this._account = addresses[0];
+    this.client = buildClients(chain, ethereum);
+
+    if (this.client.wallet) {
+      if (this.client.wallet.account) {
+        this._account = this.client.wallet.account.address;
+      } else {
+        const addresses = await this.client.wallet.requestAddresses();
+        this._account = addresses[0];
+      }
     }
 
     this.contracts = {
       ratings: await Contract.Ratings.Ratings.create(
-        validChainId,
-        clients,
+        this._chainId,
+        this.client,
         this._account,
       ),
     };
 
-    this._ready = true;
+    this.state = this.client.wallet ? "writeable" : "readonly";
     this.emit("connected", this._chainId);
   }
 
   // Unsets all state dependent on connection.
   disconnect() {
     console.log("Disconnecting from chain");
-    this._ready = false;
+    this.state = "disconnected";
     this.contracts?.ratings.clear();
     this._chainId = null;
     this.client = null;
@@ -123,7 +138,7 @@ export class BlockchainService extends EventEmitter {
     await this.connect(chainId);
   }
 
-  async getChainId(
+  private async getChainId(
     ethereum: NonNullable<typeof window.ethereum>,
   ): Promise<ChainId> {
     const chainId = await ethereum
@@ -133,6 +148,12 @@ export class BlockchainService extends EventEmitter {
     return chainId;
   }
 }
+
+export type BlockchainServiceState =
+  | "disconnected"
+  | "readonly"
+  | "writeable"
+  | "connecting";
 
 // Smart contract wrappers.
 // Each designed to mimic the on-chain state of the contract,
@@ -160,7 +181,7 @@ export namespace Contract {
               chainId,
             ),
             abi,
-            client: clients.wallet,
+            client: clients.wallet ?? clients.public,
           });
         } else {
           this.contract = chainIdOrContract;
@@ -362,7 +383,7 @@ export namespace Contract {
         const opts = {
           value: stake,
           account: this.account,
-          chain: this.clients.wallet.chain,
+          chain: this.clients.public.chain,
         } as const;
 
         await this.contract.simulate.submitRating(args, opts).catch((error) => {
@@ -379,7 +400,7 @@ export namespace Contract {
         const args = [uriHash, rater] as const;
         const opts = {
           account: this.account,
-          chain: this.clients.wallet.chain,
+          chain: this.clients.public.chain,
         } as const;
 
         await this.contract.simulate.removeRating(args, opts).catch((error) => {
@@ -720,16 +741,20 @@ function getEthereum(): Ethereum {
 
 type Ethereum = EIP1193Provider | null;
 
-function buildClients(chain: Chain, ethereum: NonNullable<Ethereum>): Clients {
-  return {
-    wallet: createWalletClient({ chain, transport: custom(ethereum) }),
-    public: createPublicClient({ chain, transport: http() }),
-  };
+function buildClients(chain: Chain, ethereum: Ethereum): Clients {
+  return ethereum
+    ? {
+        wallet: createWalletClient({ chain, transport: custom(ethereum) }),
+        public: createPublicClient({ chain, transport: http() }),
+      }
+    : {
+        public: createPublicClient({ chain, transport: http() }),
+      };
 }
 
 type Clients = {
   public: PublicClient;
-  wallet: WalletClient;
+  wallet?: WalletClient;
 };
 
 export class BadChainError extends Error {
