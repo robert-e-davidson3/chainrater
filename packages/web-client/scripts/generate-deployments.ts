@@ -80,6 +80,7 @@ function main(): void {
     // 5, // Goerli testnet
     // 11155111, // Sepolia testnet
     31337, // Anvil local testnet
+    137, // Polygon mainnet
   ];
 
   // For each chain ID we care about

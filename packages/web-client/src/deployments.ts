@@ -334,6 +334,7 @@ export default {
         }
       ],
       "addresses": {
+        "137": "0xb9f37718dc37084b0455b785f19fec965d09ef35",
         "31337": "0x5fbdb2315678afecb367f032d93f642f64180aa3"
       }
     }
