@@ -389,7 +389,7 @@ export class HeaderNav extends LitElement {
       let msg: string;
 
       if (error instanceof BadChainError)
-        msg = `Failed to connect wallet due to unsupported chain: ${error.chainId}`;
+        msg = `Failed to connect wallet due to unsupported chain: ${error.chainId} (only polygon mainnet is supported right now)`;
       else if (error instanceof InvalidDeploymentsFileError)
         msg = `Failed to connect wallet due to developer error - please file a github bug report! (see About page)`;
       else if (error instanceof MissingWeb3Error)
