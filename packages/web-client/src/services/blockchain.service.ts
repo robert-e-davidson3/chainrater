@@ -10,8 +10,9 @@ import {
   GetContractReturnType,
   WatchContractEventOnLogsFn,
   Hex,
+  EIP1193Provider,
 } from "viem";
-import { mainnet, sepolia, foundry } from "viem/chains";
+import { mainnet, sepolia, foundry, polygon } from "viem/chains";
 import { hashURI } from "../utils/blockchain.utils.js";
 import "viem/window";
 import EventEmitter from "events";
@@ -30,14 +31,15 @@ export class BlockchainService extends EventEmitter {
 
   constructor() {
     super();
-    if (!window.ethereum) throw new MissingWeb3Error();
+    const ethereum = getEthereum();
+    if (!ethereum) throw new MissingWeb3Error();
 
     // Setup event listeners for MetaMask etc
-    window.ethereum.on("accountsChanged", (accounts: Address[]) => {
+    ethereum.on("accountsChanged", (accounts: Address[]) => {
       this.account = accounts[0];
     });
 
-    window.ethereum.on("chainChanged", (chainIdHex: string) => {
+    ethereum.on("chainChanged", (chainIdHex: string) => {
       const chainId = parseInt(chainIdHex, 16);
       this.reconnect(chainId);
     });
@@ -71,7 +73,7 @@ export class BlockchainService extends EventEmitter {
   async connect(chainId?: number) {
     this._ready = false;
 
-    const ethereum = window.ethereum;
+    const ethereum = getEthereum();
     if (!ethereum) throw new MissingWeb3Error();
 
     const validChainId: ChainId =
@@ -624,17 +626,18 @@ export namespace Contract {
 }
 
 function addressOrThrow(addresses: any, id: number): Address {
-  if (!isChainId(id)) throw new Error(`Invalid chain ID: ${id}`);
+  if (!isChainId(id)) throw new BadChainError(id);
 
-  if (typeof addresses !== "object")
-    throw new Error("Invalid deployments file format");
+  if (typeof addresses !== "object") throw new InvalidDeploymentsFileError();
+
   const addrs = addresses as { [k: string]: Address };
   const address = addrs[String(id)];
-  if (!address) throw new Error(`Contract not deployed on network ${id}`);
-  if (typeof address !== "string")
-    throw new Error("Invalid deployments file format");
-  if (!address.startsWith("0x"))
-    throw new Error("Invalid deployments file format");
+
+  if (!address) throw new BadChainError(id);
+
+  if (typeof address !== "string" || !address.startsWith("0x"))
+    throw new InvalidDeploymentsFileError();
+
   return address;
 }
 
@@ -689,11 +692,10 @@ export interface RatingLog {
 }
 
 // Supported chains
-const CHAINS = [mainnet, sepolia, foundry];
+const CHAINS = [mainnet, sepolia, foundry, polygon] as const;
 type Chain = (typeof CHAINS)[number];
 type ChainId = (typeof CHAINS)[number]["id"];
 const CHAIN_IDS: ChainId[] = CHAINS.map((c) => c.id);
-// type CHAIN_IDS = `${(typeof chains)[number]["id"]}`;
 
 function getChainFromId(chainId: ChainId): Chain {
   const chain = CHAINS.find((c) => c.id === chainId);
@@ -710,10 +712,15 @@ function validChainIdOrThrow(x: number): ChainId {
   return x;
 }
 
-function buildClients(
-  chain: Chain,
-  ethereum: NonNullable<typeof window.ethereum>,
-): Clients {
+// Returns the Ethereum provider from the window object.
+// (Used to alternatively provide the brave wallet, but that didn't work out.)
+function getEthereum(): Ethereum {
+  return window.ethereum ?? null;
+}
+
+type Ethereum = EIP1193Provider | null;
+
+function buildClients(chain: Chain, ethereum: NonNullable<Ethereum>): Clients {
   return {
     wallet: createWalletClient({ chain, transport: custom(ethereum) }),
     public: createPublicClient({ chain, transport: http() }),
@@ -726,7 +733,7 @@ type Clients = {
 };
 
 export class BadChainError extends Error {
-  constructor(chainId: number) {
+  constructor(readonly chainId: number) {
     super(`Unsupported chain. ID=${chainId}`);
     this.name = "BadChainError";
   }
@@ -760,6 +767,13 @@ export class NotInitializedError extends Error {
   }
 }
 
+export class AlreadyInitializedError extends Error {
+  constructor() {
+    super("Already initialized");
+    this.name = "AlreadyInitializedError";
+  }
+}
+
 export class NotFoundError extends Error {
   constructor(message: string) {
     super(message);
@@ -774,9 +788,9 @@ export class SimulationError extends Error {
   }
 }
 
-export class AlreadyInitializedError extends Error {
-  constructor() {
-    super("Already initialized");
-    this.name = "AlreadyInitializedError";
+export class InvalidDeploymentsFileError extends Error {
+  constructor(message: string = "Invalid deployments file format") {
+    super(message);
+    this.name = "InvalidDeploymentsFileError";
   }
 }

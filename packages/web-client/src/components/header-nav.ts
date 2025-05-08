@@ -1,7 +1,12 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
-import { BlockchainService } from "../services/blockchain.service.js";
+import {
+  BadChainError,
+  BlockchainService,
+  InvalidDeploymentsFileError,
+  MissingWeb3Error,
+} from "../services/blockchain.service.js";
 import { MissingContextError } from "../utils/blockchain.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 
@@ -380,11 +385,23 @@ export class HeaderNav extends LitElement {
           composed: true,
         }),
       );
-    } catch (error) {
-      console.error("Failed to connect wallet:", error);
-      alert(
-        "Failed to connect wallet. Please make sure MetaMask is installed and unlocked.",
-      );
+    } catch (error: unknown) {
+      let msg: string;
+
+      if (error instanceof BadChainError)
+        msg = `Failed to connect wallet due to unsupported chain: ${error.chainId}`;
+      else if (error instanceof InvalidDeploymentsFileError)
+        msg = `Failed to connect wallet due to developer error - please file a github bug report! (see About page)`;
+      else if (error instanceof MissingWeb3Error)
+        msg = `Failed to connect wallet - please install MetaMask or another web3 provider.`;
+      else {
+        msg =
+          "Failed to connect wallet. Please make sure MetaMask is installed and unlocked.";
+        console.error(error);
+      }
+
+      console.error(msg);
+      alert(msg);
     } finally {
       this.isConnecting = false;
     }
