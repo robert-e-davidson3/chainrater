@@ -27,7 +27,8 @@
 
           # Decorative prompt override so we know when we're in a dev shell
           shellHook = ''
-            export PS1="[dev] $PS1"
+            export NIX_SHELL_ENV=dev
+            exec zsh
           '';
         };
       });
