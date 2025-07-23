@@ -322,8 +322,8 @@ export class HeaderNav extends LitElement {
         <div class="branding">
           <a
             class="product-name"
-            href="/"
-            @click=${() => {
+            @click=${(e: Event) => {
+              e.preventDefault();
               this.switchTab("dashboard");
             }}
             >ChainRater</a
