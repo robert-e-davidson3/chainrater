@@ -174,7 +174,13 @@ export class Dashboard extends LitElement {
     }
 
     const elements = items.map((item) => {
-      const uri = this.blockchainService.ratings.getUriFromHash(item.uriHash);
+      let uri: string;
+      try {
+        uri = this.blockchainService.ratings.getUriFromHash(item.uriHash);
+      } catch (error) {
+        console.warn(`Skipping dashboard item with hash ${item.uriHash}: URI not found`, error);
+        return null;
+      }
 
       let valueDisplay;
       if (valueType === "stake") {
@@ -199,7 +205,8 @@ export class Dashboard extends LitElement {
           ${valueDisplay}
         </li>
       `;
-    });
+    }).filter(element => element !== null);
+    
     return html`
       <ul>
         ${elements}
@@ -324,8 +331,13 @@ export class Dashboard extends LitElement {
         const variance =
           ratingCount > 1 ? Math.sqrt(squaredDiffs / (ratingCount - 1)) : 0;
 
-        const decodedURI =
-          this.blockchainService.ratings.getUriFromHash(uriHash);
+        let decodedURI: string;
+        try {
+          decodedURI = this.blockchainService.ratings.getUriFromHash(uriHash);
+        } catch (error) {
+          console.warn(`Skipping dashboard stats for hash ${uriHash}: URI not found`, error);
+          continue;
+        }
 
         uriStats.set(uriHash, {
           uriHash,

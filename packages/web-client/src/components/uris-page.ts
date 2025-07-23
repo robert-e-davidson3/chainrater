@@ -670,6 +670,9 @@ export class UrisPage extends LitElement {
       });
 
       this.processURIs(ratings);
+    } catch (error) {
+      console.error("Error loading URIs:", error);
+      // Continue anyway - processURIs handles individual URI errors
     } finally {
       this.loading = false;
     }
@@ -698,7 +701,15 @@ export class UrisPage extends LitElement {
     for (const [uriHash, uriRatings] of ratingsByURI.entries()) {
       if (uriRatings.length === 0) continue;
 
-      const uri = this.blockchainService.ratings.getUriFromHash(uriHash);
+      let uri: string;
+      try {
+        uri = this.blockchainService.ratings.getUriFromHash(uriHash);
+      } catch (error) {
+        // URI hash not found - likely the UriRevealed event was cycled out of RPC logs
+        // Skip processing this URI but log for debugging
+        console.warn(`Skipping URI with hash ${uriHash}: URI not found in cache (${uriRatings.length} orphaned ratings)`, error);
+        continue;
+      }
       const totalStake = uriRatings.reduce(
         (sum, r) => sum + r.stake,
         BigInt(0),

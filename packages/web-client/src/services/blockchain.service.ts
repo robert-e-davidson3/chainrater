@@ -221,6 +221,14 @@ export namespace Contract {
         return uri;
       }
 
+      /**
+       * Safe version of getUriFromHash that returns undefined instead of throwing
+       * Use this when you want to handle missing URIs gracefully
+       */
+      getUriFromHashSafe(hash: string): string | undefined {
+        return this.state.hashToURI.get(hash);
+      }
+
       // Specifically gets ratings that are already cached (in the Ratings.state).
       // To get a single rating directly from the blockchain, use `getRating`.
       // Returns a single rating (or null) if `rater` and `uriHash`/`uri` are provided.
