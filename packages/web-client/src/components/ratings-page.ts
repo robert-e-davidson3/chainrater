@@ -30,7 +30,7 @@ export class RatingsPage extends LitElement {
   @state() private sortBy: "recent" | "stake" | "score" | "expiry" = "recent";
   @state() private sortDirection: "asc" | "desc" = "desc";
   @state() private expiryFilter: "all" | "expired" | "active" = "all";
-  @state() private ownerFilter: "all" | "yours" = "yours";
+  @state() private ownerFilter: "all" | "yours" = "all";
 
   @consume({ context: blockchainServiceContext })
   _blockchainService?: BlockchainService;
@@ -403,15 +403,6 @@ export class RatingsPage extends LitElement {
               <span class="filter-label">Owner:</span>
               <div class="filter-options">
                 <button
-                  class="filter-button ${this.ownerFilter === "yours"
-                    ? "active"
-                    : ""}"
-                  data-filter="yours"
-                  @click=${() => this.setOwnerFilter("yours")}
-                >
-                  Your Ratings
-                </button>
-                <button
                   class="filter-button ${this.ownerFilter === "all"
                     ? "active"
                     : ""}"
@@ -419,6 +410,15 @@ export class RatingsPage extends LitElement {
                   @click=${() => this.setOwnerFilter("all")}
                 >
                   All Ratings
+                </button>
+                <button
+                  class="filter-button ${this.ownerFilter === "yours"
+                    ? "active"
+                    : ""}"
+                  data-filter="yours"
+                  @click=${() => this.setOwnerFilter("yours")}
+                >
+                  Your Ratings
                 </button>
               </div>
             </div>
