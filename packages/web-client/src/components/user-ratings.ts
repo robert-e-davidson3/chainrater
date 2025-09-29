@@ -90,35 +90,6 @@ export class TotalStakeCard extends LitElement {
 }
 
 /**
- * Trust insights component
- */
-@customElement("trust-insights")
-export class TrustInsights extends LitElement {
-  static styles = css`
-    :host {
-      display: block;
-      background-color: #fff;
-      border-radius: 8px;
-      padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      text-align: center;
-    }
-
-    h3 {
-      margin-top: 0;
-      color: #333;
-    }
-  `;
-
-  render() {
-    return html`
-      <h3>Trust Network</h3>
-      <p>Trust graph features coming soon!</p>
-    `;
-  }
-}
-
-/**
  * Rating item component
  */
 @customElement("rating-item")

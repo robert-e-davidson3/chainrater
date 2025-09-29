@@ -46,7 +46,6 @@ function main(): void {
   // deploy: The deployment script name without .s.sol extension (e.g., "DeployRating")
   const contractsToProcess = [
     { name: "Ratings", src: "Ratings", deploy: "DeployRatings" },
-    // { name: "TrustGraph", src: "TrustGraph", deploy: "DeployTrustGraph" },
   ];
 
   // Extract ABI from each contract JSON file

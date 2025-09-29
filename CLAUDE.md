@@ -73,7 +73,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Future Considerations
 - **Indexing Service**: Current implementation queries blockchain events directly, which works for development but doesn't scale. A dedicated indexing service (like The Graph) will be needed for production to efficiently query historical data.
-- **Trust Graph**: Shelved because it's out of scope for MVP but would make ChainRater unique.
 - **Pagination**: Out of scope for MVP but needed for scaling.
 - **Account Naming**: Use smart contract for giving names to accounts. Maybe ENS, maybe a custom contract that also uses timing-from-staking.
 
