@@ -19,8 +19,6 @@ contract Ratings {
         bool cleanup
     );
 
-    event UriRevealed(bytes32 indexed uriHash, string uri);
-
     error InvalidScore(uint8 rating);
 
     error InvalidStake(uint256 stake);
@@ -40,8 +38,8 @@ contract Ratings {
     // The URI hash is a keccak256 of the full URI
     mapping(bytes32 => mapping(address => Rating)) public ratings;
 
-    // Track which URI hashes have already had their original URI revealed
-    mapping(bytes32 => bool) private revealedUris;
+    // URI hash -> URI
+    mapping(bytes32 => string) public uris;
 
     struct Rating {
         uint8 score;
@@ -67,10 +65,8 @@ contract Ratings {
         bool resubmit = rebate > 0;
         uint64 posted = uint64(block.timestamp);
 
-        // If this URI hash has never been revealed before, emit the UriRevealed event
-        if (!revealedUris[uriHash]) {
-            revealedUris[uriHash] = true;
-            emit UriRevealed(uriHash, uri);
+        if (!uris[uriHash]) {
+            uris[uriHash] = uri;
         }
 
         if (resubmit) {
