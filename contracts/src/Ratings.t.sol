@@ -32,32 +32,19 @@ contract RatingTest is Test {
     function testSubmitRating() public {
         uint8 score = 5;
         uint64 stake = ratings.MIN_STAKE();
-        bytes32 testUriHash = keccak256(bytes(testUri));
 
         vm.recordLogs();
 
         ratings.submitRating{value: stake}(testUri, score);
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
-        assertEq(entries.length, 2, "entries.length==2");
+        assertEq(entries.length, 1, "entries.length==1");
         assertEq(
             entries[0].topics[0],
-            keccak256("UriRevealed(bytes32,string)"),
-            "UriRevealed topic[0]"
-        );
-        assertEq(entries[0].topics[1], testUriHash, "UriRevealed topic[1]");
-        assertEq(
-            abi.decode(entries[0].data, (string)),
-            testUri,
-            "UriRevealed data"
-        );
-
-        assertEq(
-            entries[1].topics[0],
             keccak256(
                 "RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"
             ),
-            "entries[1].topics[0]"
+            "entries[0].topics[0]"
         );
 
         Ratings.Rating memory r = ratings.getRatingByString(
@@ -163,23 +150,6 @@ contract RatingTest is Test {
         );
         assertEq(r.score, newScore, "r.score");
         assertEq(r.stake, newStake, "r.stake");
-
-        // Verify the UriRevealed event is NOT emitted on rating replacement
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        bytes32 uriRevealedSignature = keccak256("UriRevealed(bytes32,string)");
-
-        bool foundUriRevealed = false;
-        for (uint i = 0; i < entries.length; i++) {
-            if (entries[i].topics[0] == uriRevealedSignature) {
-                foundUriRevealed = true;
-                break;
-            }
-        }
-
-        assertFalse(
-            foundUriRevealed,
-            "UriRevealed should not be emitted for already revealed URIs"
-        );
     }
 
     // Test removing your own rating
@@ -286,7 +256,6 @@ contract RatingTest is Test {
         ratings.removeRating(testUri, address(0));
     }
 
-    // Alternative approach to test events
     function testRatingSubmittedEvent() public {
         uint8 score = 5;
         uint64 stake = ratings.MIN_STAKE();
@@ -300,20 +269,17 @@ contract RatingTest is Test {
         // Get the recorded logs
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        // There should be at least two log entries (RatingSubmitted and UriRevealed)
-        assertGe(entries.length, 2);
+        // There should be at least one log entry (RatingSubmitted)
+        assertGe(entries.length, 1);
 
         // The first topic is the event signature
         bytes32 ratingEventSignature = keccak256(
             "RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"
         );
 
-        bytes32 uriRevealedSignature = keccak256("UriRevealed(bytes32,string)");
-
         // Find both events
         bytes32 testUriHash = keccak256(bytes(testUri));
         bool foundRatingSubmitted = false;
-        bool foundUriRevealed = false;
 
         for (uint i = 0; i < entries.length; i++) {
             if (entries[i].topics[0] == ratingEventSignature) {
@@ -324,15 +290,10 @@ contract RatingTest is Test {
                     entries[i].topics[2],
                     bytes32(uint256(uint160(address(this))))
                 );
-            } else if (entries[i].topics[0] == uriRevealedSignature) {
-                foundUriRevealed = true;
-                // Check that the indexed parameter matches
-                assertEq(entries[i].topics[1], testUriHash);
             }
         }
 
         assertTrue(foundRatingSubmitted, "RatingSubmitted event not found");
-        assertTrue(foundUriRevealed, "UriRevealed event not found");
     }
 
     function testPreciseCleanupExpiry() public {
