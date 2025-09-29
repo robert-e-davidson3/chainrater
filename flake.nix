@@ -28,7 +28,7 @@
           # Decorative prompt override so we know when we're in a dev shell
           shellHook = ''
             export NIX_SHELL_ENV=dev
-            exec zsh
+            # exec zsh # does not work with direnv
           '';
         };
       });
