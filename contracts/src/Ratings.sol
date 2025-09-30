@@ -233,7 +233,7 @@ contract Ratings {
     }
 
     // Recommended by Foundry linter for being a tiny bit cheaper.
-    function hashUri(bytes memory uri) public pure returns (bytes32 x) {
+    function hashUri(bytes memory uri) internal pure returns (bytes32 x) {
         assembly {
             x := keccak256(add(uri, 0x20), mload(uri))
         }
