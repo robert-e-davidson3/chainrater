@@ -375,6 +375,221 @@ contract RatingTest is Test {
         assertEq(r2.score, score - 1);
     }
 
+    // Test getAllRatings with no ratings
+    function testGetAllRatingsEmpty() public {
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(0, 0);
+        assertEq(total, 0, "total should be 0");
+        assertEq(allRatings.length, 0, "ratings array should be empty");
+    }
+
+    // Test getAllRatings with a single rating
+    function testGetAllRatingsSingle() public {
+        uint8 score = 5;
+        uint64 stake = ratings.MIN_STAKE();
+        ratings.submitRating{value: stake}(testUri, score);
+
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(0, 0);
+        assertEq(total, 1, "total should be 1");
+        assertEq(allRatings.length, 1, "should return 1 rating");
+        assertEq(allRatings[0].score, score, "score should match");
+        assertEq(allRatings[0].rater, address(this), "rater should match");
+        assertEq(
+            allRatings[0].uriHash,
+            hash(bytes(testUri)),
+            "uriHash should match"
+        );
+    }
+
+    // Test getAllRatings with multiple ratings
+    function testGetAllRatingsMultiple() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit 5 ratings from different users for different URIs
+        vm.prank(user1);
+        ratings.submitRating{value: stake}("place://Restaurant A", 5);
+
+        vm.prank(user2);
+        ratings.submitRating{value: stake}("place://Restaurant B", 4);
+
+        vm.prank(user1);
+        ratings.submitRating{value: stake}("place://Restaurant C", 3);
+
+        vm.prank(address(this));
+        ratings.submitRating{value: stake}("place://Restaurant D", 2);
+
+        vm.prank(user2);
+        ratings.submitRating{value: stake}("place://Restaurant E", 1);
+
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(0, 0);
+        assertEq(total, 5, "total should be 5");
+        assertEq(allRatings.length, 5, "should return 5 ratings");
+
+        // Verify the order and content
+        assertEq(allRatings[0].score, 5, "first rating score");
+        assertEq(allRatings[0].rater, user1, "first rating rater");
+        assertEq(allRatings[1].score, 4, "second rating score");
+        assertEq(allRatings[1].rater, user2, "second rating rater");
+        assertEq(allRatings[2].score, 3, "third rating score");
+        assertEq(allRatings[3].score, 2, "fourth rating score");
+        assertEq(allRatings[4].score, 1, "fifth rating score");
+    }
+
+    // Test getAllRatings with pagination (limit)
+    function testGetAllRatingsWithLimit() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit 5 ratings
+        for (uint8 i = 1; i <= 5; i++) {
+            string memory uri = string(
+                abi.encodePacked("place://Restaurant ", i)
+            );
+            ratings.submitRating{value: stake}(uri, i);
+        }
+
+        // Get first 3 ratings
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(0, 3);
+        assertEq(total, 5, "total should still be 5");
+        assertEq(allRatings.length, 3, "should return 3 ratings");
+        assertEq(allRatings[0].score, 1, "first rating score");
+        assertEq(allRatings[1].score, 2, "second rating score");
+        assertEq(allRatings[2].score, 3, "third rating score");
+    }
+
+    // Test getAllRatings with offset
+    function testGetAllRatingsWithOffset() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit 5 ratings
+        for (uint8 i = 1; i <= 5; i++) {
+            string memory uri = string(
+                abi.encodePacked("place://Restaurant ", i)
+            );
+            ratings.submitRating{value: stake}(uri, i);
+        }
+
+        // Get ratings starting from offset 2
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(2, 0);
+        assertEq(total, 5, "total should be 5");
+        assertEq(allRatings.length, 3, "should return 3 ratings (5-2)");
+        assertEq(allRatings[0].score, 3, "first rating score");
+        assertEq(allRatings[1].score, 4, "second rating score");
+        assertEq(allRatings[2].score, 5, "third rating score");
+    }
+
+    // Test getAllRatings with both offset and limit
+    function testGetAllRatingsWithOffsetAndLimit() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit 10 ratings
+        for (uint8 i = 1; i <= 10; i++) {
+            string memory uri = string(
+                abi.encodePacked("place://Restaurant ", i)
+            );
+            ratings.submitRating{value: stake}(uri, i % 5 + 1);
+        }
+
+        // Get 3 ratings starting from offset 3
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(3, 3);
+        assertEq(total, 10, "total should be 10");
+        assertEq(allRatings.length, 3, "should return 3 ratings");
+        assertEq(allRatings[0].score, 5, "first rating score (i=3 :: 3%5+1 = 5");
+        assertEq(allRatings[1].score, 1, "second rating score");
+        assertEq(allRatings[2].score, 2, "third rating score");
+    }
+
+    // Test getAllRatings with offset beyond total
+    function testGetAllRatingsOffsetBeyondTotal() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit 3 ratings
+        for (uint8 i = 1; i <= 3; i++) {
+            string memory uri = string(
+                abi.encodePacked("place://Restaurant ", i)
+            );
+            ratings.submitRating{value: stake}(uri, i);
+        }
+
+        // Try to get ratings starting from offset 10 (beyond total)
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(10, 5);
+        assertEq(total, 3, "total should be 3");
+        assertEq(allRatings.length, 0, "should return empty array");
+    }
+
+    // Test getAllRatings with limit exceeding remaining items
+    function testGetAllRatingsLimitExceedsRemaining() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit 5 ratings
+        for (uint8 i = 1; i <= 5; i++) {
+            string memory uri = string(
+                abi.encodePacked("place://Restaurant ", i)
+            );
+            ratings.submitRating{value: stake}(uri, i);
+        }
+
+        // Request 10 ratings from offset 3 (only 2 remaining)
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(3, 10);
+        assertEq(total, 5, "total should be 5");
+        assertEq(allRatings.length, 2, "should return 2 ratings (remaining)");
+        assertEq(allRatings[0].score, 4, "first rating score");
+        assertEq(allRatings[1].score, 5, "second rating score");
+    }
+
+    // Test getAllRatings after a rating is removed
+    function testGetAllRatingsAfterRemoval() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit 5 ratings (i starts at 49 = ASCII '1')
+        for (uint8 i = 49; i <= 53; i++) {
+            string memory uri = string(
+                abi.encodePacked("place://Restaurant ", i)
+            );
+            ratings.submitRating{value: stake}(uri, i - 48);
+        }
+
+        // Remove the middle rating (51 = ASCII '3')
+        ratings.removeRating("place://Restaurant 3", address(this));
+
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(0, 0);
+        assertEq(total, 4, "total should be 4 after removal");
+        assertEq(allRatings.length, 4, "should return 4 ratings");
+
+        // Note: Due to swap-and-pop, the last rating moves to position 3
+        assertEq(allRatings[0].score, 1, "first rating score");
+        assertEq(allRatings[1].score, 2, "second rating score");
+        assertEq(allRatings[2].score, 5, "third rating (was last)");
+        assertEq(allRatings[3].score, 4, "fourth rating score");
+    }
+
+    // Test getAllRatings with rating updates
+    function testGetAllRatingsAfterUpdate() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit 3 ratings
+        ratings.submitRating{value: stake}("place://Restaurant A", 5);
+        ratings.submitRating{value: stake}("place://Restaurant B", 4);
+        ratings.submitRating{value: stake}("place://Restaurant C", 3);
+
+        // Update the first rating
+        ratings.submitRating{value: stake * 2}("place://Restaurant A", 2);
+
+        (Ratings.Rating[] memory allRatings, uint256 total) = ratings
+            .getAllRatings(0, 0);
+        assertEq(total, 3, "total should still be 3");
+        assertEq(allRatings.length, 3, "should return 3 ratings");
+        assertEq(allRatings[0].score, 2, "first rating updated score");
+        assertEq(allRatings[0].stake, stake * 2, "first rating updated stake");
+    }
+
     // Wrapper function for making linter happy.
     function hash(bytes memory uri) public pure returns (bytes32 x) {
         /// forge-lint: disable-next-line(asm-keccak256)
