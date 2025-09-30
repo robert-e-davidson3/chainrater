@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import "forge-std/Script.sol";
-import "../src/Ratings.sol";
+import {Script,console} from "forge-std/Script.sol";
+import {Ratings} from "../src/Ratings.sol";
 
 contract PopulateWithTestData is Script {
     // Sample URIs to populate with ratings

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
+import {Test,Vm} from "forge-std/Test.sol";
+// import {console} from "forge-std/console.sol";
 
-import "../src/Ratings.sol";
+import {Ratings} from "../src/Ratings.sol";
 
 contract RatingTest is Test {
     Ratings public ratings;
@@ -41,7 +41,7 @@ contract RatingTest is Test {
         assertEq(entries.length, 1, "entries.length==1");
         assertEq(
             entries[0].topics[0],
-            keccak256(
+            hash(
                 "RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"
             ),
             "entries[0].topics[0]"
@@ -184,7 +184,7 @@ contract RatingTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(
                 Ratings.NoSuchRating.selector,
-                keccak256(bytes(testUri)),
+                hash(bytes(testUri)),
                 address(this)
             )
         );
@@ -273,12 +273,12 @@ contract RatingTest is Test {
         assertGe(entries.length, 1);
 
         // The first topic is the event signature
-        bytes32 ratingEventSignature = keccak256(
+        bytes32 ratingEventSignature = hash(
             "RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"
         );
 
         // Find both events
-        bytes32 testUriHash = keccak256(bytes(testUri));
+        bytes32 testUriHash = hash(bytes(testUri));
         bool foundRatingSubmitted = false;
 
         for (uint i = 0; i < entries.length; i++) {
@@ -373,5 +373,11 @@ contract RatingTest is Test {
             address(this)
         );
         assertEq(r2.score, score - 1);
+    }
+
+    // Wrapper function for making linter happy.
+    function hash(bytes memory uri) public pure returns (bytes32 x) {
+        /// forge-lint: disable-next-line(asm-keccak256)
+        return keccak256(uri);
     }
 }

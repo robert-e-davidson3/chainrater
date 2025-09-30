@@ -97,7 +97,7 @@ contract Ratings {
         }
 
         // Compute the hash of the URI string
-        bytes32 uriHash = keccak256(bytes(uri));
+        bytes32 uriHash = hashUri(bytes(uri));
         if (bytes(uris[uriHash]).length == 0) {
             uris[uriHash] = uri;
         }
@@ -148,7 +148,7 @@ contract Ratings {
     function removeRating(string calldata uri, address rater) external {
         if (rater == address(0)) revert InvalidRater(rater);
 
-        bytes32 uriHash = keccak256(bytes(uri));
+        bytes32 uriHash = hashUri(bytes(uri));
         uint256 ratingIndex = ratingIndices[uriHash][rater];
         if (ratingIndex == 0) revert NoSuchRating(uriHash, rater);
         Rating storage rating = allRatings[ratingIndex];
@@ -194,7 +194,7 @@ contract Ratings {
         string calldata uri,
         address rater
     ) external view returns (Rating memory) {
-        bytes32 uriHash = keccak256(bytes(uri));
+        bytes32 uriHash = hashUri(bytes(uri));
         uint256 index = ratingIndices[uriHash][rater];
         return allRatings[index];
     }
@@ -230,5 +230,12 @@ contract Ratings {
 
     function validStake(uint256 stake) internal pure returns (bool) {
         return stake >= MIN_STAKE && stake % STAKE_PER_SECOND == 0;
+    }
+
+    // Recommended by Foundry linter for being a tiny bit cheaper.
+    function hashUri(bytes memory uri) public pure returns (bytes32 x) {
+        assembly {
+            x := keccak256(add(uri, 0x20), mload(uri))
+        }
     }
 }
