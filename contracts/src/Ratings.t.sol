@@ -376,7 +376,7 @@ contract RatingTest is Test {
     }
 
     // Test getAllRatings with no ratings
-    function testGetAllRatingsEmpty() public {
+    function testGetAllRatingsEmpty() public view {
         (Ratings.Rating[] memory allRatings, uint256 total) = ratings
             .getAllRatings(0, 0);
         assertEq(total, 0, "total should be 0");
