@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import {Test,Vm} from "forge-std/Test.sol";
+import {Test, Vm} from "forge-std/Test.sol";
 // import {console} from "forge-std/console.sol";
 
 import {Ratings} from "../src/Ratings.sol";
@@ -41,9 +41,7 @@ contract RatingTest is Test {
         assertEq(entries.length, 1, "entries.length==1");
         assertEq(
             entries[0].topics[0],
-            hash(
-                "RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"
-            ),
+            hash("RatingSubmitted(bytes32,address,uint8,uint128,uint64,bool)"),
             "entries[0].topics[0]"
         );
 
@@ -490,7 +488,7 @@ contract RatingTest is Test {
             string memory uri = string(
                 abi.encodePacked("place://Restaurant ", i)
             );
-            ratings.submitRating{value: stake}(uri, i % 5 + 1);
+            ratings.submitRating{value: stake}(uri, (i % 5) + 1);
         }
 
         // Get 3 ratings starting from offset 3
@@ -498,7 +496,11 @@ contract RatingTest is Test {
             .getAllRatings(3, 3);
         assertEq(total, 10, "total should be 10");
         assertEq(allRatings.length, 3, "should return 3 ratings");
-        assertEq(allRatings[0].score, 5, "first rating score (i=3 :: 3%5+1 = 5");
+        assertEq(
+            allRatings[0].score,
+            5,
+            "first rating score (i=3 :: 3%5+1 = 5"
+        );
         assertEq(allRatings[1].score, 1, "second rating score");
         assertEq(allRatings[2].score, 2, "third rating score");
     }
@@ -610,7 +612,11 @@ contract RatingTest is Test {
         uriHashes[0] = hash(bytes(uri));
 
         string memory result = ratings.unhashUris(uriHashes);
-        assertEq(result, "place://Five Guys\n", "should return URI with newline");
+        assertEq(
+            result,
+            "place://Five Guys\n",
+            "should return URI with newline"
+        );
     }
 
     // Test unhashUris with multiple existing URIs
@@ -642,7 +648,11 @@ contract RatingTest is Test {
         uriHashes[0] = hash(bytes("place://NonExistent"));
 
         string memory result = ratings.unhashUris(uriHashes);
-        assertEq(result, "<unknown>\n", "should return <unknown> for non-existing URI");
+        assertEq(
+            result,
+            "<unknown>\n",
+            "should return <unknown> for non-existing URI"
+        );
     }
 
     // Test unhashUris with mix of existing and non-existing URIs

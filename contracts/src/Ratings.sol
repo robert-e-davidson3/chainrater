@@ -85,14 +85,18 @@ contract Ratings {
         );
     }
 
-    function unhashUris(bytes32[] calldata uriHashes) external view returns (string memory result) {
-        for (uint256 i = 0; i < uriHashes.length;) {
+    function unhashUris(
+        bytes32[] calldata uriHashes
+    ) external view returns (string memory result) {
+        for (uint256 i = 0; i < uriHashes.length; ) {
             string memory uri = uris[uriHashes[i]];
             if (bytes(uri).length == 0) {
                 uri = "<unknown>";
             }
             result = string(abi.encodePacked(result, uri, "\n"));
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -227,9 +231,11 @@ contract Ratings {
         }
         ratings = new Rating[](limit);
         // TODO can save gas by skipping allRatings bounds check using assembly
-        for (uint256 i = 0; i < limit;) {
+        for (uint256 i = 0; i < limit; ) {
             ratings[i] = allRatings[offset + 1 + i]; // skip dummy
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
