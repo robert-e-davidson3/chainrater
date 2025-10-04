@@ -1,471 +1,471 @@
 export default {
-  contracts: {
-    Ratings: {
-      abi: [
+  "contracts": {
+    "Ratings": {
+      "abi": [
         {
-          type: "constructor",
-          inputs: [],
-          stateMutability: "nonpayable",
+          "type": "constructor",
+          "inputs": [],
+          "stateMutability": "nonpayable"
         },
         {
-          type: "function",
-          name: "MIN_STAKE",
-          inputs: [],
-          outputs: [
+          "type": "function",
+          "name": "MIN_STAKE",
+          "inputs": [],
+          "outputs": [
             {
-              name: "",
-              type: "uint64",
-              internalType: "uint64",
-            },
+              "name": "",
+              "type": "uint64",
+              "internalType": "uint64"
+            }
           ],
-          stateMutability: "view",
+          "stateMutability": "view"
         },
         {
-          type: "function",
-          name: "STAKE_PER_SECOND",
-          inputs: [],
-          outputs: [
+          "type": "function",
+          "name": "STAKE_PER_SECOND",
+          "inputs": [],
+          "outputs": [
             {
-              name: "",
-              type: "uint64",
-              internalType: "uint64",
-            },
+              "name": "",
+              "type": "uint64",
+              "internalType": "uint64"
+            }
           ],
-          stateMutability: "view",
+          "stateMutability": "view"
         },
         {
-          type: "function",
-          name: "allRatings",
-          inputs: [
+          "type": "function",
+          "name": "allRatings",
+          "inputs": [
             {
-              name: "",
-              type: "uint256",
-              internalType: "uint256",
-            },
+              "name": "",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
           ],
-          outputs: [
+          "outputs": [
             {
-              name: "score",
-              type: "uint8",
-              internalType: "uint8",
+              "name": "score",
+              "type": "uint8",
+              "internalType": "uint8"
             },
             {
-              name: "posted",
-              type: "uint64",
-              internalType: "uint64",
+              "name": "posted",
+              "type": "uint64",
+              "internalType": "uint64"
             },
             {
-              name: "stake",
-              type: "uint128",
-              internalType: "uint128",
+              "name": "stake",
+              "type": "uint128",
+              "internalType": "uint128"
             },
             {
-              name: "rater",
-              type: "address",
-              internalType: "address",
+              "name": "rater",
+              "type": "address",
+              "internalType": "address"
             },
             {
-              name: "uriHash",
-              type: "bytes32",
-              internalType: "bytes32",
-            },
+              "name": "uriHash",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
           ],
-          stateMutability: "view",
+          "stateMutability": "view"
         },
         {
-          type: "function",
-          name: "getAllRatings",
-          inputs: [
+          "type": "function",
+          "name": "getAllRatings",
+          "inputs": [
             {
-              name: "offset",
-              type: "uint256",
-              internalType: "uint256",
+              "name": "offset",
+              "type": "uint256",
+              "internalType": "uint256"
             },
             {
-              name: "limit",
-              type: "uint256",
-              internalType: "uint256",
-            },
+              "name": "limit",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
           ],
-          outputs: [
+          "outputs": [
             {
-              name: "ratings",
-              type: "tuple[]",
-              internalType: "struct Ratings.Rating[]",
-              components: [
+              "name": "ratings",
+              "type": "tuple[]",
+              "internalType": "struct Ratings.Rating[]",
+              "components": [
                 {
-                  name: "score",
-                  type: "uint8",
-                  internalType: "uint8",
+                  "name": "score",
+                  "type": "uint8",
+                  "internalType": "uint8"
                 },
                 {
-                  name: "posted",
-                  type: "uint64",
-                  internalType: "uint64",
+                  "name": "posted",
+                  "type": "uint64",
+                  "internalType": "uint64"
                 },
                 {
-                  name: "stake",
-                  type: "uint128",
-                  internalType: "uint128",
+                  "name": "stake",
+                  "type": "uint128",
+                  "internalType": "uint128"
                 },
                 {
-                  name: "rater",
-                  type: "address",
-                  internalType: "address",
+                  "name": "rater",
+                  "type": "address",
+                  "internalType": "address"
                 },
                 {
-                  name: "uriHash",
-                  type: "bytes32",
-                  internalType: "bytes32",
-                },
-              ],
+                  "name": "uriHash",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                }
+              ]
             },
             {
-              name: "total",
-              type: "uint256",
-              internalType: "uint256",
-            },
+              "name": "total",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
           ],
-          stateMutability: "view",
+          "stateMutability": "view"
         },
         {
-          type: "function",
-          name: "getRating",
-          inputs: [
+          "type": "function",
+          "name": "getRating",
+          "inputs": [
             {
-              name: "uriHash",
-              type: "bytes32",
-              internalType: "bytes32",
+              "name": "uriHash",
+              "type": "bytes32",
+              "internalType": "bytes32"
             },
             {
-              name: "rater",
-              type: "address",
-              internalType: "address",
-            },
+              "name": "rater",
+              "type": "address",
+              "internalType": "address"
+            }
           ],
-          outputs: [
+          "outputs": [
             {
-              name: "",
-              type: "tuple",
-              internalType: "struct Ratings.Rating",
-              components: [
+              "name": "",
+              "type": "tuple",
+              "internalType": "struct Ratings.Rating",
+              "components": [
                 {
-                  name: "score",
-                  type: "uint8",
-                  internalType: "uint8",
-                },
-                {
-                  name: "posted",
-                  type: "uint64",
-                  internalType: "uint64",
+                  "name": "score",
+                  "type": "uint8",
+                  "internalType": "uint8"
                 },
                 {
-                  name: "stake",
-                  type: "uint128",
-                  internalType: "uint128",
+                  "name": "posted",
+                  "type": "uint64",
+                  "internalType": "uint64"
                 },
                 {
-                  name: "rater",
-                  type: "address",
-                  internalType: "address",
+                  "name": "stake",
+                  "type": "uint128",
+                  "internalType": "uint128"
                 },
                 {
-                  name: "uriHash",
-                  type: "bytes32",
-                  internalType: "bytes32",
-                },
-              ],
-            },
-          ],
-          stateMutability: "view",
-        },
-        {
-          type: "function",
-          name: "getRatingByString",
-          inputs: [
-            {
-              name: "uri",
-              type: "string",
-              internalType: "string",
-            },
-            {
-              name: "rater",
-              type: "address",
-              internalType: "address",
-            },
-          ],
-          outputs: [
-            {
-              name: "",
-              type: "tuple",
-              internalType: "struct Ratings.Rating",
-              components: [
-                {
-                  name: "score",
-                  type: "uint8",
-                  internalType: "uint8",
+                  "name": "rater",
+                  "type": "address",
+                  "internalType": "address"
                 },
                 {
-                  name: "posted",
-                  type: "uint64",
-                  internalType: "uint64",
+                  "name": "uriHash",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                }
+              ]
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "getRatingByString",
+          "inputs": [
+            {
+              "name": "uri",
+              "type": "string",
+              "internalType": "string"
+            },
+            {
+              "name": "rater",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "tuple",
+              "internalType": "struct Ratings.Rating",
+              "components": [
+                {
+                  "name": "score",
+                  "type": "uint8",
+                  "internalType": "uint8"
                 },
                 {
-                  name: "stake",
-                  type: "uint128",
-                  internalType: "uint128",
+                  "name": "posted",
+                  "type": "uint64",
+                  "internalType": "uint64"
                 },
                 {
-                  name: "rater",
-                  type: "address",
-                  internalType: "address",
+                  "name": "stake",
+                  "type": "uint128",
+                  "internalType": "uint128"
                 },
                 {
-                  name: "uriHash",
-                  type: "bytes32",
-                  internalType: "bytes32",
+                  "name": "rater",
+                  "type": "address",
+                  "internalType": "address"
                 },
-              ],
-            },
+                {
+                  "name": "uriHash",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                }
+              ]
+            }
           ],
-          stateMutability: "view",
+          "stateMutability": "view"
         },
         {
-          type: "function",
-          name: "ratingIndices",
-          inputs: [
+          "type": "function",
+          "name": "ratingIndices",
+          "inputs": [
             {
-              name: "",
-              type: "bytes32",
-              internalType: "bytes32",
+              "name": "",
+              "type": "bytes32",
+              "internalType": "bytes32"
             },
             {
-              name: "",
-              type: "address",
-              internalType: "address",
-            },
+              "name": "",
+              "type": "address",
+              "internalType": "address"
+            }
           ],
-          outputs: [
+          "outputs": [
             {
-              name: "",
-              type: "uint256",
-              internalType: "uint256",
-            },
+              "name": "",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
           ],
-          stateMutability: "view",
+          "stateMutability": "view"
         },
         {
-          type: "function",
-          name: "removeRating",
-          inputs: [
+          "type": "function",
+          "name": "removeRating",
+          "inputs": [
             {
-              name: "uri",
-              type: "string",
-              internalType: "string",
+              "name": "uri",
+              "type": "string",
+              "internalType": "string"
             },
             {
-              name: "rater",
-              type: "address",
-              internalType: "address",
-            },
+              "name": "rater",
+              "type": "address",
+              "internalType": "address"
+            }
           ],
-          outputs: [],
-          stateMutability: "nonpayable",
+          "outputs": [],
+          "stateMutability": "nonpayable"
         },
         {
-          type: "function",
-          name: "submitRating",
-          inputs: [
+          "type": "function",
+          "name": "submitRating",
+          "inputs": [
             {
-              name: "uri",
-              type: "string",
-              internalType: "string",
+              "name": "uri",
+              "type": "string",
+              "internalType": "string"
             },
             {
-              name: "score",
-              type: "uint8",
-              internalType: "uint8",
-            },
+              "name": "score",
+              "type": "uint8",
+              "internalType": "uint8"
+            }
           ],
-          outputs: [],
-          stateMutability: "payable",
+          "outputs": [],
+          "stateMutability": "payable"
         },
         {
-          type: "function",
-          name: "unhashUris",
-          inputs: [
+          "type": "function",
+          "name": "unhashUris",
+          "inputs": [
             {
-              name: "uriHashes",
-              type: "bytes32[]",
-              internalType: "bytes32[]",
-            },
+              "name": "uriHashes",
+              "type": "bytes32[]",
+              "internalType": "bytes32[]"
+            }
           ],
-          outputs: [
+          "outputs": [
             {
-              name: "result",
-              type: "string",
-              internalType: "string",
-            },
+              "name": "result",
+              "type": "string",
+              "internalType": "string"
+            }
           ],
-          stateMutability: "view",
+          "stateMutability": "view"
         },
         {
-          type: "function",
-          name: "uris",
-          inputs: [
+          "type": "function",
+          "name": "uris",
+          "inputs": [
             {
-              name: "",
-              type: "bytes32",
-              internalType: "bytes32",
-            },
+              "name": "",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
           ],
-          outputs: [
+          "outputs": [
             {
-              name: "",
-              type: "string",
-              internalType: "string",
-            },
+              "name": "",
+              "type": "string",
+              "internalType": "string"
+            }
           ],
-          stateMutability: "view",
+          "stateMutability": "view"
         },
         {
-          type: "event",
-          name: "RatingRemoved",
-          inputs: [
+          "type": "event",
+          "name": "RatingRemoved",
+          "inputs": [
             {
-              name: "uri",
-              type: "bytes32",
-              indexed: true,
-              internalType: "bytes32",
+              "name": "uri",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
             },
             {
-              name: "rater",
-              type: "address",
-              indexed: true,
-              internalType: "address",
+              "name": "rater",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
             },
             {
-              name: "cleanup",
-              type: "bool",
-              indexed: false,
-              internalType: "bool",
-            },
+              "name": "cleanup",
+              "type": "bool",
+              "indexed": false,
+              "internalType": "bool"
+            }
           ],
-          anonymous: false,
+          "anonymous": false
         },
         {
-          type: "event",
-          name: "RatingSubmitted",
-          inputs: [
+          "type": "event",
+          "name": "RatingSubmitted",
+          "inputs": [
             {
-              name: "uri",
-              type: "bytes32",
-              indexed: true,
-              internalType: "bytes32",
+              "name": "uri",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
             },
             {
-              name: "rater",
-              type: "address",
-              indexed: true,
-              internalType: "address",
+              "name": "rater",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
             },
             {
-              name: "score",
-              type: "uint8",
-              indexed: false,
-              internalType: "uint8",
+              "name": "score",
+              "type": "uint8",
+              "indexed": false,
+              "internalType": "uint8"
             },
             {
-              name: "stake",
-              type: "uint128",
-              indexed: false,
-              internalType: "uint128",
+              "name": "stake",
+              "type": "uint128",
+              "indexed": false,
+              "internalType": "uint128"
             },
             {
-              name: "posted",
-              type: "uint64",
-              indexed: false,
-              internalType: "uint64",
+              "name": "posted",
+              "type": "uint64",
+              "indexed": false,
+              "internalType": "uint64"
             },
             {
-              name: "resubmit",
-              type: "bool",
-              indexed: false,
-              internalType: "bool",
-            },
+              "name": "resubmit",
+              "type": "bool",
+              "indexed": false,
+              "internalType": "bool"
+            }
           ],
-          anonymous: false,
+          "anonymous": false
         },
         {
-          type: "error",
-          name: "InvalidRater",
-          inputs: [
+          "type": "error",
+          "name": "InvalidRater",
+          "inputs": [
             {
-              name: "rater",
-              type: "address",
-              internalType: "address",
-            },
-          ],
+              "name": "rater",
+              "type": "address",
+              "internalType": "address"
+            }
+          ]
         },
         {
-          type: "error",
-          name: "InvalidScore",
-          inputs: [
+          "type": "error",
+          "name": "InvalidScore",
+          "inputs": [
             {
-              name: "rating",
-              type: "uint8",
-              internalType: "uint8",
-            },
-          ],
+              "name": "rating",
+              "type": "uint8",
+              "internalType": "uint8"
+            }
+          ]
         },
         {
-          type: "error",
-          name: "InvalidStake",
-          inputs: [
+          "type": "error",
+          "name": "InvalidStake",
+          "inputs": [
             {
-              name: "stake",
-              type: "uint256",
-              internalType: "uint256",
-            },
-          ],
+              "name": "stake",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ]
         },
         {
-          type: "error",
-          name: "NoSuchRating",
-          inputs: [
+          "type": "error",
+          "name": "NoSuchRating",
+          "inputs": [
             {
-              name: "uriHash",
-              type: "bytes32",
-              internalType: "bytes32",
+              "name": "uriHash",
+              "type": "bytes32",
+              "internalType": "bytes32"
             },
             {
-              name: "rater",
-              type: "address",
-              internalType: "address",
-            },
-          ],
+              "name": "rater",
+              "type": "address",
+              "internalType": "address"
+            }
+          ]
         },
         {
-          type: "error",
-          name: "RatingIsStillValid",
-          inputs: [
+          "type": "error",
+          "name": "RatingIsStillValid",
+          "inputs": [
             {
-              name: "posted",
-              type: "uint64",
-              internalType: "uint64",
+              "name": "posted",
+              "type": "uint64",
+              "internalType": "uint64"
             },
             {
-              name: "stake",
-              type: "uint128",
-              internalType: "uint128",
-            },
-          ],
-        },
+              "name": "stake",
+              "type": "uint128",
+              "internalType": "uint128"
+            }
+          ]
+        }
       ],
-      addresses: {
-        "137": "0xb9f37718dc37084b0455b785f19fec965d09ef35",
-        "31337": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
-      },
-    },
-  },
-} as const;
+      "addresses": {
+        "137": "0x14197398661c78ed3c97c7f6ec7bc237c02d621e",
+        "31337": "0x5fbdb2315678afecb367f032d93f642f64180aa3"
+      }
+    }
+  }
+} as const
