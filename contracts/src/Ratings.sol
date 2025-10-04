@@ -215,8 +215,10 @@ contract Ratings {
             limit = total - offset;
         }
         ratings = new Rating[](limit);
-        for (uint256 i = 0; i < limit; i++) {
+        // TODO can save gas by skipping allRatings bounds check using assembly
+        for (uint256 i = 0; i < limit;) {
             ratings[i] = allRatings[offset + 1 + i]; // skip dummy
+            unchecked { ++i; }
         }
     }
 
