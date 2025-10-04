@@ -547,8 +547,10 @@ export namespace Contract {
           ABI,
           "RatingSubmitted",
           true
-        > = (logs) => {
+        > = async (logs) => {
           const changed = [];
+          const newUriHashes = new Set<string>();
+
           for (const log of logs) {
             const { uri: uriHash, score, stake, posted } = log.args;
             const rater = log.args.rater.toLowerCase() as Address;
@@ -573,7 +575,28 @@ export namespace Contract {
               latestBlockNumber,
               deleted: false,
             });
+
+            // Track if we need to fetch the URI for this hash
+            if (!this.state.hashToURI.has(uriHash.toLowerCase())) {
+              newUriHashes.add(uriHash);
+            }
           }
+
+          // Fetch URIs for any new hashes
+          if (newUriHashes.size > 0) {
+            const uriPromises = Array.from(newUriHashes).map(hash =>
+              this.contract.read.uris([hash as `0x${string}`])
+            );
+            const uris = await Promise.all(uriPromises);
+
+            Array.from(newUriHashes).forEach((hash, index) => {
+              const uri = uris[index];
+              if (uri && uri.length > 0) {
+                this.state.hashToURI.set(hash.toLowerCase(), uri);
+              }
+            });
+          }
+
           if (changed.length > 0) this.emitRatingSubmitted(changed);
         };
 
