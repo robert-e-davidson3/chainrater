@@ -4,8 +4,9 @@ import { consume } from "@lit/context";
 import {
   type ExistingRating,
   BlockchainService,
+  Contract,
 } from "../services/blockchain.service.js";
-import { MissingContextError } from "../utils/blockchain.utils.js";
+import { MissingContextError, hashURI } from "../utils/blockchain.utils.js";
 import { URIValidator } from "../utils/uri.utils.js";
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { MIN_DURATION_SECONDS } from "../utils/time-constants.js";
@@ -369,22 +370,49 @@ export class RatingForm extends LitElement {
       const stakePerSecond = this.blockchainService.ratings.stakePerSecond;
       const stake = BigInt(this.durationSeconds) * stakePerSecond;
 
+      // Store the URI that was rated for future reference
+      const ratedUri = this.uriInput;
+      const ratedUriHash = hashURI(ratedUri).toLowerCase();
+
+      // Set up a promise that resolves when the blockchain service processes the event
+      const eventProcessed = new Promise<void>((resolve) => {
+        const handler = (
+          ratings: Contract.Ratings.RatingSubmittedEvent[],
+        ) => {
+          if (ratings.some((r) => r.uriHash.toLowerCase() === ratedUriHash)) {
+            this.blockchainService.ratings.off(
+              Contract.Ratings.RatingSubmittedEventName,
+              handler,
+            );
+            resolve();
+          }
+        };
+        this.blockchainService.ratings.on(
+          Contract.Ratings.RatingSubmittedEventName,
+          handler,
+        );
+      });
+
       await this.blockchainService.ratings.submitRating(
-        this.uriInput,
+        ratedUri,
         this.scoreInput,
         stake,
       );
 
-      // Show success message
-      this.successMessage = `Rating submitted successfully for "${this.uriInput}"!`;
+      // Wait for the blockchain service to process the event
+      await eventProcessed;
 
-      // Store the URI that was rated for future reference
-      const ratedUri = this.uriInput;
+      // Show success message
+      this.successMessage = `Rating submitted successfully for "${ratedUri}"!`;
 
       // Reset form if not editing
       if (!this.isEditing) {
         this.resetForm();
       }
+
+      // Cache the URI in the blockchain service to avoid race condition
+      // where event arrives before state propagates
+      this.blockchainService.ratings.cacheUri(ratedUriHash, ratedUri);
 
       // Notify parent components about the rating submission
       this.dispatchEvent(

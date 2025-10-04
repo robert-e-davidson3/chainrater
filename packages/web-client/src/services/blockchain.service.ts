@@ -229,6 +229,14 @@ export namespace Contract {
         return this.state.hashToURI.get(hash.toLowerCase());
       }
 
+      /**
+       * Manually cache a URI for a given hash
+       * Useful to avoid race conditions where we know the URI before the blockchain state propagates
+       */
+      cacheUri(hash: string, uri: string): void {
+        this.state.hashToURI.set(hash.toLowerCase(), uri);
+      }
+
       // Specifically gets ratings that are already cached (in the Ratings.state).
       // To get a single rating directly from the blockchain, use `getRating`.
       // Returns a single rating (or null) if `rater` and `uriHash`/`uri` are provided.
