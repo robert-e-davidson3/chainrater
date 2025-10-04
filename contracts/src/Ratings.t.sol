@@ -592,7 +592,7 @@ contract RatingTest is Test {
 
     // Test unhashUris with empty array
     function testUnhashUrisEmpty() public view {
-        bytes[] memory uriHashes = new bytes[](0);
+        bytes32[] memory uriHashes = new bytes32[](0);
         string memory result = ratings.unhashUris(uriHashes);
         assertEq(result, "", "empty array should return empty string");
     }
@@ -605,9 +605,9 @@ contract RatingTest is Test {
         // Submit a rating to register the URI
         ratings.submitRating{value: stake}(uri, 5);
 
-        // Query it back
-        bytes[] memory uriHashes = new bytes[](1);
-        uriHashes[0] = bytes(uri);
+        // Query it back using the hash
+        bytes32[] memory uriHashes = new bytes32[](1);
+        uriHashes[0] = hash(bytes(uri));
 
         string memory result = ratings.unhashUris(uriHashes);
         assertEq(result, "place://Five Guys\n", "should return URI with newline");
@@ -622,11 +622,11 @@ contract RatingTest is Test {
         ratings.submitRating{value: stake}("place://Restaurant B", 4);
         ratings.submitRating{value: stake}("place://Restaurant C", 3);
 
-        // Query them back
-        bytes[] memory uriHashes = new bytes[](3);
-        uriHashes[0] = bytes("place://Restaurant A");
-        uriHashes[1] = bytes("place://Restaurant B");
-        uriHashes[2] = bytes("place://Restaurant C");
+        // Query them back using their hashes
+        bytes32[] memory uriHashes = new bytes32[](3);
+        uriHashes[0] = hash(bytes("place://Restaurant A"));
+        uriHashes[1] = hash(bytes("place://Restaurant B"));
+        uriHashes[2] = hash(bytes("place://Restaurant C"));
 
         string memory result = ratings.unhashUris(uriHashes);
         assertEq(
@@ -638,8 +638,8 @@ contract RatingTest is Test {
 
     // Test unhashUris with non-existing URI
     function testUnhashUrisNonExisting() public view {
-        bytes[] memory uriHashes = new bytes[](1);
-        uriHashes[0] = bytes("place://NonExistent");
+        bytes32[] memory uriHashes = new bytes32[](1);
+        uriHashes[0] = hash(bytes("place://NonExistent"));
 
         string memory result = ratings.unhashUris(uriHashes);
         assertEq(result, "<unknown>\n", "should return <unknown> for non-existing URI");
@@ -652,11 +652,11 @@ contract RatingTest is Test {
         // Submit rating for one URI
         ratings.submitRating{value: stake}("place://Known Restaurant", 5);
 
-        // Query with mix of known and unknown
-        bytes[] memory uriHashes = new bytes[](3);
-        uriHashes[0] = bytes("place://Known Restaurant");
-        uriHashes[1] = bytes("place://Unknown Restaurant");
-        uriHashes[2] = bytes("place://Known Restaurant");
+        // Query with mix of known and unknown hashes
+        bytes32[] memory uriHashes = new bytes32[](3);
+        uriHashes[0] = hash(bytes("place://Known Restaurant"));
+        uriHashes[1] = hash(bytes("place://Unknown Restaurant"));
+        uriHashes[2] = hash(bytes("place://Known Restaurant"));
 
         string memory result = ratings.unhashUris(uriHashes);
         assertEq(

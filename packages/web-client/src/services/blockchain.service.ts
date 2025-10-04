@@ -457,19 +457,19 @@ export namespace Contract {
       // Get contract state and set up listeners for changes.
       async init() {
         if (this._ready) throw new AlreadyInitializedError();
-        
+
         // Initialize constants synchronously (these are fast)
         await this.initConstants();
-        
+
         // Set up event watchers (fast - just sets up listeners)
         this.setupEventWatchers();
-        
+
         this._ready = true;
         this.emit("initialized");
-        
-        // Load historical events asynchronously (slow - don't block connection)
-        this.loadHistoricalEvents().catch(error => {
-          console.error("Failed to load historical events:", error);
+
+        // Load all ratings from contract storage asynchronously (don't block connection)
+        this.loadAllRatingsFromContract().catch(error => {
+          console.error("Failed to load ratings from contract:", error);
           this.emit("historicalEventsError", error);
         });
       }
@@ -481,98 +481,66 @@ export namespace Contract {
       }
 
       private setupEventWatchers() {
-        this.setupUriRevealedWatcher();
         this.setupRatingSubmittedWatcher();
         this.setupRatingRemovedWatcher();
       }
 
-      private async loadHistoricalEvents() {
+      private async loadAllRatingsFromContract() {
         try {
-          // For production, limit to recent blocks to avoid timeout
-          // For development (foundry), we can use "earliest"
-          const isFoundry = this.clients.public.chain?.id === foundry.id;
-          const fromBlock = isFoundry ? "earliest" : await this.getRecentBlockNumber();
-          
-          await Promise.all([
-            this.loadHistoricalUriRevealedEvents(fromBlock),
-            this.loadHistoricalRatingSubmittedEvents(fromBlock), 
-            this.loadHistoricalRatingRemovedEvents(fromBlock),
-          ]);
-          
+          // Get all ratings from contract storage
+          const [ratings, total] = await this.contract.read.getAllRatings([0n, 0n]);
+
+          console.log(`Loaded ${total} ratings from contract storage`);
+
+          // Extract unique URI hashes
+          const uniqueUriHashes = new Set<string>();
+          for (const rating of ratings) {
+            uniqueUriHashes.add(rating.uriHash);
+          }
+
+          // Batch fetch all URIs using unhashUris
+          if (uniqueUriHashes.size > 0) {
+            const uriHashesArray = Array.from(uniqueUriHashes).map(hash => hash as `0x${string}`);
+            const urisString = await this.contract.read.unhashUris([uriHashesArray]);
+
+            // Parse the newline-separated URI strings
+            const uris = urisString.split('\n').filter(uri => uri.length > 0);
+
+            // Populate hashToURI map
+            uriHashesArray.forEach((hash, index) => {
+              const uri = uris[index];
+              if (uri && uri !== '<unknown>') {
+                this.state.hashToURI.set(hash.toLowerCase(), uri);
+              }
+            });
+          }
+
+          // Populate ratings map
+          for (const rating of ratings) {
+            const { uriHash, rater, score, stake, posted } = rating;
+            const uriHashLower = uriHash.toLowerCase();
+            const raterLower = rater.toLowerCase() as Address;
+
+            if (!this.state.ratings.has(uriHashLower)) {
+              this.state.ratings.set(uriHashLower, new Map());
+            }
+
+            this.state.ratings.get(uriHashLower)?.set(raterLower, {
+              score: Number(score),
+              posted,
+              stake,
+              latestBlockNumber: 0n, // Not relevant for initial load
+              deleted: false,
+            });
+          }
+
           this.emit("historicalEventsLoaded");
         } catch (error) {
-          console.warn("Failed to load some historical events, will retry with smaller range:", error);
-          // Fallback: try with very recent blocks only
-          this.loadRecentHistoricalEvents().catch(fallbackError => {
-            console.error("Fallback historical event loading also failed:", fallbackError);
-          });
+          console.error("Failed to load ratings from contract:", error);
+          throw error;
         }
       }
 
-      private async getRecentBlockNumber(): Promise<bigint> {
-        const currentBlock = await this.clients.public.getBlockNumber();
-        // Load events from last 10,000 blocks (~1-2 days on Polygon)
-        const blocksToQuery = 10000n;
-        return currentBlock > blocksToQuery ? currentBlock - blocksToQuery : 0n;
-      }
-
-      private async loadRecentHistoricalEvents() {
-        const currentBlock = await this.clients.public.getBlockNumber();
-        // Very conservative: only last 1000 blocks
-        const fromBlock = currentBlock > 1000n ? currentBlock - 1000n : 0n;
-        
-        await Promise.all([
-          this.loadHistoricalUriRevealedEvents(fromBlock),
-          this.loadHistoricalRatingSubmittedEvents(fromBlock), 
-          this.loadHistoricalRatingRemovedEvents(fromBlock),
-        ]);
-      }
-
-      private setupUriRevealedWatcher() {
-        const onLogs: WatchContractEventOnLogsFn<ABI, "UriRevealed", true> = (
-          logs,
-        ) => {
-          for (const log of logs) {
-            const { uriHash, uri } = log.args;
-            this.state.hashToURI.set(uriHash, uri);
-          }
-          if (logs.length > 0) this.emit("uriRevealed", logs);
-        };
-
-        this.watchers.add(
-          this.clients.public.watchContractEvent({
-            abi,
-            address: this.contract.address,
-            eventName: "UriRevealed",
-            args: {},
-            strict: true,
-            onLogs,
-          }),
-        );
-      }
-
-      private async loadHistoricalUriRevealedEvents(fromBlock: bigint | "earliest" = "earliest") {
-        const onLogs: WatchContractEventOnLogsFn<ABI, "UriRevealed", true> = (
-          logs,
-        ) => {
-          for (const log of logs) {
-            const { uriHash, uri } = log.args;
-            this.state.hashToURI.set(uriHash, uri);
-          }
-          if (logs.length > 0) this.emit("uriRevealed", logs);
-        };
-
-        await this.clients.public
-          .getContractEvents({
-            abi,
-            address: this.contract.address,
-            fromBlock,
-            toBlock: "latest",
-            eventName: "UriRevealed",
-            strict: true,
-          })
-          .then(onLogs);
-      }
 
       private setupRatingSubmittedWatcher() {
         const onLogs: WatchContractEventOnLogsFn<
@@ -621,52 +589,6 @@ export namespace Contract {
         );
       }
 
-      private async loadHistoricalRatingSubmittedEvents(fromBlock: bigint | "earliest" = "earliest") {
-        const onLogs: WatchContractEventOnLogsFn<
-          ABI,
-          "RatingSubmitted",
-          true
-        > = (logs) => {
-          const changed = [];
-          for (const log of logs) {
-            const { uri: uriHash, score, stake, posted } = log.args;
-            const rater = log.args.rater.toLowerCase() as Address;
-            const { blockNumber: latestBlockNumber } = log;
-
-            if (!this.state.ratings.has(uriHash))
-              this.state.ratings.set(uriHash, new Map());
-            const rating = this.state.ratings.get(uriHash)?.get(rater);
-            if (rating && rating.latestBlockNumber >= latestBlockNumber)
-              continue; // Ignore old ratings
-            changed.push({
-              uriHash,
-              rater,
-              score,
-              stake,
-              posted,
-            });
-            this.state.ratings?.get(uriHash)?.set(rater, {
-              score,
-              posted,
-              stake,
-              latestBlockNumber,
-              deleted: false,
-            });
-          }
-          if (changed.length > 0) this.emitRatingSubmitted(changed);
-        };
-
-        await this.clients.public
-          .getContractEvents({
-            abi,
-            address: this.contract.address,
-            fromBlock,
-            toBlock: "latest",
-            eventName: "RatingSubmitted",
-            strict: true,
-          })
-          .then(onLogs);
-      }
 
       private setupRatingRemovedWatcher() {
         const onLogs: WatchContractEventOnLogsFn<ABI, "RatingRemoved", true> = (
@@ -704,151 +626,7 @@ export namespace Contract {
         );
       }
 
-      private async loadHistoricalRatingRemovedEvents(fromBlock: bigint | "earliest" = "earliest") {
-        const onLogs: WatchContractEventOnLogsFn<ABI, "RatingRemoved", true> = (
-          logs,
-        ) => {
-          const changed = [];
-          for (const log of logs) {
-            const uriHash = log.args.uri;
-            const rater = log.args.rater.toLowerCase() as Address;
-            const { blockNumber: latestBlockNumber } = log;
 
-            if (!this.state.ratings.has(uriHash))
-              this.state.ratings.set(uriHash, new Map());
-            const rating = this.state.ratings.get(uriHash)?.get(rater);
-            if (rating && rating.latestBlockNumber >= latestBlockNumber)
-              continue; // Ignore older events
-            changed.push({ uriHash, rater });
-            this.state.ratings?.get(uriHash)?.set(rater, {
-              latestBlockNumber,
-              deleted: true,
-            });
-          }
-          if (changed.length > 0) this.emitRatingRemoved(changed);
-        };
-
-        await this.clients.public
-          .getContractEvents({
-            abi,
-            address: this.contract.address,
-            fromBlock,
-            toBlock: "latest",
-            eventName: "RatingRemoved",
-            strict: true,
-          })
-          .then(onLogs);
-      }
-
-      /**
-       * Load historical events from a specific block range
-       * Useful for loading older data on demand without blocking initial connection
-       */
-      async loadHistoricalEventsFromRange(fromBlock: bigint | "earliest", toBlock: bigint | "latest" = "latest") {
-        try {
-          await Promise.all([
-            this.loadHistoricalUriRevealedEventsFromRange(fromBlock, toBlock),
-            this.loadHistoricalRatingSubmittedEventsFromRange(fromBlock, toBlock),
-            this.loadHistoricalRatingRemovedEventsFromRange(fromBlock, toBlock),
-          ]);
-          this.emit("historicalRangeLoaded", { fromBlock, toBlock });
-        } catch (error) {
-          console.error("Failed to load historical events from range:", error);
-          throw error;
-        }
-      }
-
-      private async loadHistoricalUriRevealedEventsFromRange(fromBlock: bigint | "earliest", toBlock: bigint | "latest") {
-        const onLogs: WatchContractEventOnLogsFn<ABI, "UriRevealed", true> = (logs) => {
-          for (const log of logs) {
-            const { uriHash, uri } = log.args;
-            this.state.hashToURI.set(uriHash, uri);
-          }
-          if (logs.length > 0) this.emit("uriRevealed", logs);
-        };
-
-        await this.clients.public
-          .getContractEvents({
-            abi,
-            address: this.contract.address,
-            fromBlock,
-            toBlock,
-            eventName: "UriRevealed",
-            strict: true,
-          })
-          .then(onLogs);
-      }
-
-      private async loadHistoricalRatingSubmittedEventsFromRange(fromBlock: bigint | "earliest", toBlock: bigint | "latest") {
-        const onLogs: WatchContractEventOnLogsFn<ABI, "RatingSubmitted", true> = (logs) => {
-          const changed = [];
-          for (const log of logs) {
-            const { uri: uriHash, score, stake, posted } = log.args;
-            const rater = log.args.rater.toLowerCase() as Address;
-            const { blockNumber: latestBlockNumber } = log;
-
-            if (!this.state.ratings.has(uriHash))
-              this.state.ratings.set(uriHash, new Map());
-            const rating = this.state.ratings.get(uriHash)?.get(rater);
-            if (rating && rating.latestBlockNumber >= latestBlockNumber)
-              continue; // Ignore old ratings
-            changed.push({ uriHash, rater, score, stake, posted });
-            this.state.ratings?.get(uriHash)?.set(rater, {
-              score,
-              posted,
-              stake,
-              latestBlockNumber,
-              deleted: false,
-            });
-          }
-          if (changed.length > 0) this.emitRatingSubmitted(changed);
-        };
-
-        await this.clients.public
-          .getContractEvents({
-            abi,
-            address: this.contract.address,
-            fromBlock,
-            toBlock,
-            eventName: "RatingSubmitted",
-            strict: true,
-          })
-          .then(onLogs);
-      }
-
-      private async loadHistoricalRatingRemovedEventsFromRange(fromBlock: bigint | "earliest", toBlock: bigint | "latest") {
-        const onLogs: WatchContractEventOnLogsFn<ABI, "RatingRemoved", true> = (logs) => {
-          const changed = [];
-          for (const log of logs) {
-            const uriHash = log.args.uri;
-            const rater = log.args.rater.toLowerCase() as Address;
-            const { blockNumber: latestBlockNumber } = log;
-
-            if (!this.state.ratings.has(uriHash))
-              this.state.ratings.set(uriHash, new Map());
-            const rating = this.state.ratings.get(uriHash)?.get(rater);
-            if (rating && rating.latestBlockNumber >= latestBlockNumber)
-              continue; // Ignore older events
-            changed.push({ uriHash, rater });
-            this.state.ratings?.get(uriHash)?.set(rater, {
-              latestBlockNumber,
-              deleted: true,
-            });
-          }
-          if (changed.length > 0) this.emitRatingRemoved(changed);
-        };
-
-        await this.clients.public
-          .getContractEvents({
-            abi,
-            address: this.contract.address,
-            fromBlock,
-            toBlock,
-            eventName: "RatingRemoved",
-            strict: true,
-          })
-          .then(onLogs);
-      }
 
       clear() {
         this.state = { hashToURI: new Map(), ratings: new Map() };

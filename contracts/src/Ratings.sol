@@ -85,10 +85,9 @@ contract Ratings {
         );
     }
 
-    function unhashUris(bytes[] calldata uriHashes) external view returns (string memory result) {
+    function unhashUris(bytes32[] calldata uriHashes) external view returns (string memory result) {
         for (uint256 i = 0; i < uriHashes.length;) {
-            bytes32 uriHash = hashUri(uriHashes[i]);
-            string memory uri = uris[uriHash];
+            string memory uri = uris[uriHashes[i]];
             if (bytes(uri).length == 0) {
                 uri = "<unknown>";
             }

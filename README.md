@@ -35,14 +35,20 @@ npm run build:contracts
 npm run test:contracts
 ```
 
-4. Deploy contracts to local blockchain:
+4. Go to `contracts/` directory.
+
+5. Set `PRIVATE_KEY` in `contracts/.env` to one of the Anvil private keys.
+See `contracts/.env.example` for an example.
+
+6. Deploy contracts to local blockchain:
 ```bash
 forge script --rpc-url local --broadcast script/DeployRatings.s.sol
 ```
 
-5. Take note of the deployed contract address from the output.
+8. Take note of the deployed contract address from the output.
+It will look like `Rating contract deploy4ed at:  0xthisisthecontractaddress`.
 
-6. Populate with test data:
+9. Populate with test data:
 ```bash
 RATINGS_ADDRESS=0x<deployed_contract_address> forge script --rpc-url local --broadcast script/PopulateWithTestData.s.sol
 ```
