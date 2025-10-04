@@ -690,25 +690,30 @@ export class PeoplePage extends LitElement {
       const isCurrentUser = currentUserAddress === address.toLowerCase();
 
       // Process ratings to get URI and expiration info
-      const processedRatings = validRatings.map((rating) => {
-        const { uriHash, stake, posted } = rating as any;
-        const uri = this.blockchainService.ratings.getUriFromHashSafe(uriHash);
-        if (!uri) {
-          console.warn(`Skipping rating with hash ${uriHash} for rater ${address}: URI not found`);
-          return null;
-        }
-        const expirationTime = new Date(
-          Number(1000n * (posted + stake / stakePerSecond)),
-        );
-        const isExpired = expirationTime.getTime() <= now;
+      const processedRatings = validRatings
+        .map((rating) => {
+          const { uriHash, stake, posted } = rating as any;
+          const uri =
+            this.blockchainService.ratings.getUriFromHashSafe(uriHash);
+          if (!uri) {
+            console.warn(
+              `Skipping rating with hash ${uriHash} for rater ${address}: URI not found`,
+            );
+            return null;
+          }
+          const expirationTime = new Date(
+            Number(1000n * (posted + stake / stakePerSecond)),
+          );
+          const isExpired = expirationTime.getTime() <= now;
 
-        return {
-          uri,
-          uriHash,
-          expirationTime,
-          isExpired,
-        };
-      }).filter(rating => rating !== null);
+          return {
+            uri,
+            uriHash,
+            expirationTime,
+            isExpired,
+          };
+        })
+        .filter((rating) => rating !== null);
 
       accountSummaries.push({
         address,

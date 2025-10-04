@@ -173,40 +173,45 @@ export class Dashboard extends LitElement {
       return html`<p class="empty-list">No data available</p>`;
     }
 
-    const elements = items.map((item) => {
-      let uri: string;
-      try {
-        uri = this.blockchainService.ratings.getUriFromHash(item.uriHash);
-      } catch (error) {
-        console.warn(`Skipping dashboard item with hash ${item.uriHash}: URI not found`, error);
-        return null;
-      }
+    const elements = items
+      .map((item) => {
+        let uri: string;
+        try {
+          uri = this.blockchainService.ratings.getUriFromHash(item.uriHash);
+        } catch (error) {
+          console.warn(
+            `Skipping dashboard item with hash ${item.uriHash}: URI not found`,
+            error,
+          );
+          return null;
+        }
 
-      let valueDisplay;
-      if (valueType === "stake") {
-        const stakedItem = item as StakedURIItem;
-        valueDisplay = html`
-          <stake-time-display
-            .stake=${stakedItem.totalStake}
-            .aggregateMode=${true}
-            .showDetails=${true}
-          ></stake-time-display>
+        let valueDisplay;
+        if (valueType === "stake") {
+          const stakedItem = item as StakedURIItem;
+          valueDisplay = html`
+            <stake-time-display
+              .stake=${stakedItem.totalStake}
+              .aggregateMode=${true}
+              .showDetails=${true}
+            ></stake-time-display>
+          `;
+        } else {
+          const value = this.formatValue(item, valueType);
+          valueDisplay = html`<span class="item-value">${value}</span>`;
+        }
+
+        return html`
+          <li>
+            <a @click=${() => this.viewItem(uri ?? "", item.uriHash)}>
+              <uri-display .uri=${uri}></uri-display>
+            </a>
+            ${valueDisplay}
+          </li>
         `;
-      } else {
-        const value = this.formatValue(item, valueType);
-        valueDisplay = html`<span class="item-value">${value}</span>`;
-      }
+      })
+      .filter((element) => element !== null);
 
-      return html`
-        <li>
-          <a @click=${() => this.viewItem(uri ?? "", item.uriHash)}>
-            <uri-display .uri=${uri}></uri-display>
-          </a>
-          ${valueDisplay}
-        </li>
-      `;
-    }).filter(element => element !== null);
-    
     return html`
       <ul>
         ${elements}
@@ -340,7 +345,10 @@ export class Dashboard extends LitElement {
         try {
           decodedURI = this.blockchainService.ratings.getUriFromHash(uriHash);
         } catch (error) {
-          console.warn(`Skipping dashboard stats for hash ${uriHash}: URI not found`, error);
+          console.warn(
+            `Skipping dashboard stats for hash ${uriHash}: URI not found`,
+            error,
+          );
           continue;
         }
 

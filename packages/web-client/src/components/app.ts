@@ -49,18 +49,36 @@ export class ChainRater extends LitElement {
       this.requestUpdate();
     });
     window.addEventListener("popstate", this.handlePopState.bind(this));
-    this.addEventListener("rating-submitted", this.handleRatingSubmitted as EventListener);
-    this.addEventListener("navigate", this.handleFlashNavigate as EventListener);
-    this.addEventListener("dismissed", this.handleFlashDismissed as EventListener);
+    this.addEventListener(
+      "rating-submitted",
+      this.handleRatingSubmitted as EventListener,
+    );
+    this.addEventListener(
+      "navigate",
+      this.handleFlashNavigate as EventListener,
+    );
+    this.addEventListener(
+      "dismissed",
+      this.handleFlashDismissed as EventListener,
+    );
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.listeners.clear();
     window.removeEventListener("popstate", this.handlePopState.bind(this));
-    this.removeEventListener("rating-submitted", this.handleRatingSubmitted as EventListener);
-    this.removeEventListener("navigate", this.handleFlashNavigate as EventListener);
-    this.removeEventListener("dismissed", this.handleFlashDismissed as EventListener);
+    this.removeEventListener(
+      "rating-submitted",
+      this.handleRatingSubmitted as EventListener,
+    );
+    this.removeEventListener(
+      "navigate",
+      this.handleFlashNavigate as EventListener,
+    );
+    this.removeEventListener(
+      "dismissed",
+      this.handleFlashDismissed as EventListener,
+    );
   }
 
   static styles = css`

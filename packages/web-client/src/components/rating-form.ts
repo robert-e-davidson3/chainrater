@@ -376,9 +376,7 @@ export class RatingForm extends LitElement {
 
       // Set up a promise that resolves when the blockchain service processes the event
       const eventProcessed = new Promise<void>((resolve) => {
-        const handler = (
-          ratings: Contract.Ratings.RatingSubmittedEvent[],
-        ) => {
+        const handler = (ratings: Contract.Ratings.RatingSubmittedEvent[]) => {
           if (ratings.some((r) => r.uriHash.toLowerCase() === ratedUriHash)) {
             this.blockchainService.ratings.off(
               Contract.Ratings.RatingSubmittedEventName,
