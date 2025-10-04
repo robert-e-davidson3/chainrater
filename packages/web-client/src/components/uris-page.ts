@@ -3,6 +3,7 @@ import { customElement, state, property } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import {
   BlockchainService,
+  Contract,
   type ExistingRating,
 } from "../services/blockchain.service.js";
 import { hashURI, MissingContextError } from "../utils/blockchain.utils.js";
@@ -713,7 +714,10 @@ export class UrisPage extends LitElement {
       } catch (error) {
         // URI hash not found - likely the UriRevealed event was cycled out of RPC logs
         // Skip processing this URI but log for debugging
-        console.warn(`Skipping URI with hash ${uriHash}: URI not found in cache (${uriRatings.length} orphaned ratings)`, error);
+        console.warn(
+          `Skipping URI with hash ${uriHash}: URI not found in cache (${uriRatings.length} orphaned ratings)`,
+          error,
+        );
         continue;
       }
       const totalStake = uriRatings.reduce(

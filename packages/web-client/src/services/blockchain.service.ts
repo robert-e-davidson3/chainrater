@@ -468,7 +468,7 @@ export namespace Contract {
         this.emit("initialized");
 
         // Load all ratings from contract storage asynchronously (don't block connection)
-        this.loadAllRatingsFromContract().catch(error => {
+        this.loadAllRatingsFromContract().catch((error) => {
           console.error("Failed to load ratings from contract:", error);
           this.emit("historicalEventsError", error);
         });
@@ -488,7 +488,10 @@ export namespace Contract {
       private async loadAllRatingsFromContract() {
         try {
           // Get all ratings from contract storage
-          const [ratings, total] = await this.contract.read.getAllRatings([0n, 0n]);
+          const [ratings, total] = await this.contract.read.getAllRatings([
+            0n,
+            0n,
+          ]);
 
           console.log(`Loaded ${total} ratings from contract storage`);
 
@@ -500,16 +503,20 @@ export namespace Contract {
 
           // Batch fetch all URIs using unhashUris
           if (uniqueUriHashes.size > 0) {
-            const uriHashesArray = Array.from(uniqueUriHashes).map(hash => hash as `0x${string}`);
-            const urisString = await this.contract.read.unhashUris([uriHashesArray]);
+            const uriHashesArray = Array.from(uniqueUriHashes).map(
+              (hash) => hash as `0x${string}`,
+            );
+            const urisString = await this.contract.read.unhashUris([
+              uriHashesArray,
+            ]);
 
             // Parse the newline-separated URI strings
-            const uris = urisString.split('\n').filter(uri => uri.length > 0);
+            const uris = urisString.split("\n").filter((uri) => uri.length > 0);
 
             // Populate hashToURI map
             uriHashesArray.forEach((hash, index) => {
               const uri = uris[index];
-              if (uri && uri !== '<unknown>') {
+              if (uri && uri !== "<unknown>") {
                 this.state.hashToURI.set(hash.toLowerCase(), uri);
               }
             });
@@ -541,7 +548,6 @@ export namespace Contract {
         }
       }
 
-
       private setupRatingSubmittedWatcher() {
         const onLogs: WatchContractEventOnLogsFn<
           ABI,
@@ -553,22 +559,23 @@ export namespace Contract {
 
           for (const log of logs) {
             const { uri: uriHash, score, stake, posted } = log.args;
+            const uriHashLower = uriHash.toLowerCase();
             const rater = log.args.rater.toLowerCase() as Address;
             const { blockNumber: latestBlockNumber } = log;
 
-            if (!this.state.ratings.has(uriHash))
-              this.state.ratings.set(uriHash, new Map());
-            const rating = this.state.ratings.get(uriHash)?.get(rater);
+            if (!this.state.ratings.has(uriHashLower))
+              this.state.ratings.set(uriHashLower, new Map());
+            const rating = this.state.ratings.get(uriHashLower)?.get(rater);
             if (rating && rating.latestBlockNumber >= latestBlockNumber)
               continue; // Ignore old ratings
             changed.push({
-              uriHash,
+              uriHash: uriHashLower as `0x${string}`,
               rater,
               score,
               stake,
               posted,
             });
-            this.state.ratings?.get(uriHash)?.set(rater, {
+            this.state.ratings?.get(uriHashLower)?.set(rater, {
               score,
               posted,
               stake,
@@ -577,21 +584,27 @@ export namespace Contract {
             });
 
             // Track if we need to fetch the URI for this hash
-            if (!this.state.hashToURI.has(uriHash.toLowerCase())) {
-              newUriHashes.add(uriHash);
+            if (!this.state.hashToURI.has(uriHashLower)) {
+              newUriHashes.add(uriHashLower);
             }
           }
 
           // Fetch URIs for any new hashes
           if (newUriHashes.size > 0) {
-            const uriPromises = Array.from(newUriHashes).map(hash =>
-              this.contract.read.uris([hash as `0x${string}`])
+            const uriHashesArray = Array.from(newUriHashes).map(
+              (hash) => hash as `0x${string}`,
             );
-            const uris = await Promise.all(uriPromises);
+            const urisString = await this.contract.read.unhashUris([
+              uriHashesArray,
+            ]);
 
-            Array.from(newUriHashes).forEach((hash, index) => {
+            // Parse the newline-separated URI strings
+            const uris = urisString.split("\n").filter((uri) => uri.length > 0);
+
+            // Populate hashToURI map
+            uriHashesArray.forEach((hash, index) => {
               const uri = uris[index];
-              if (uri && uri.length > 0) {
+              if (uri && uri !== "<unknown>") {
                 this.state.hashToURI.set(hash.toLowerCase(), uri);
               }
             });
@@ -611,7 +624,6 @@ export namespace Contract {
           }),
         );
       }
-
 
       private setupRatingRemovedWatcher() {
         const onLogs: WatchContractEventOnLogsFn<ABI, "RatingRemoved", true> = (
@@ -648,8 +660,6 @@ export namespace Contract {
           }),
         );
       }
-
-
 
       clear() {
         this.state = { hashToURI: new Map(), ratings: new Map() };
