@@ -590,6 +590,82 @@ contract RatingTest is Test {
         assertEq(allRatings[0].stake, stake * 2, "first rating updated stake");
     }
 
+    // Test unhashUris with empty array
+    function testUnhashUrisEmpty() public view {
+        bytes[] memory uriHashes = new bytes[](0);
+        string memory result = ratings.unhashUris(uriHashes);
+        assertEq(result, "", "empty array should return empty string");
+    }
+
+    // Test unhashUris with single existing URI
+    function testUnhashUrisSingle() public {
+        uint64 stake = ratings.MIN_STAKE();
+        string memory uri = "place://Five Guys";
+
+        // Submit a rating to register the URI
+        ratings.submitRating{value: stake}(uri, 5);
+
+        // Query it back
+        bytes[] memory uriHashes = new bytes[](1);
+        uriHashes[0] = bytes(uri);
+
+        string memory result = ratings.unhashUris(uriHashes);
+        assertEq(result, "place://Five Guys\n", "should return URI with newline");
+    }
+
+    // Test unhashUris with multiple existing URIs
+    function testUnhashUrisMultiple() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit ratings for multiple URIs
+        ratings.submitRating{value: stake}("place://Restaurant A", 5);
+        ratings.submitRating{value: stake}("place://Restaurant B", 4);
+        ratings.submitRating{value: stake}("place://Restaurant C", 3);
+
+        // Query them back
+        bytes[] memory uriHashes = new bytes[](3);
+        uriHashes[0] = bytes("place://Restaurant A");
+        uriHashes[1] = bytes("place://Restaurant B");
+        uriHashes[2] = bytes("place://Restaurant C");
+
+        string memory result = ratings.unhashUris(uriHashes);
+        assertEq(
+            result,
+            "place://Restaurant A\nplace://Restaurant B\nplace://Restaurant C\n",
+            "should return all URIs separated by newlines"
+        );
+    }
+
+    // Test unhashUris with non-existing URI
+    function testUnhashUrisNonExisting() public view {
+        bytes[] memory uriHashes = new bytes[](1);
+        uriHashes[0] = bytes("place://NonExistent");
+
+        string memory result = ratings.unhashUris(uriHashes);
+        assertEq(result, "<unknown>\n", "should return <unknown> for non-existing URI");
+    }
+
+    // Test unhashUris with mix of existing and non-existing URIs
+    function testUnhashUrisMixed() public {
+        uint64 stake = ratings.MIN_STAKE();
+
+        // Submit rating for one URI
+        ratings.submitRating{value: stake}("place://Known Restaurant", 5);
+
+        // Query with mix of known and unknown
+        bytes[] memory uriHashes = new bytes[](3);
+        uriHashes[0] = bytes("place://Known Restaurant");
+        uriHashes[1] = bytes("place://Unknown Restaurant");
+        uriHashes[2] = bytes("place://Known Restaurant");
+
+        string memory result = ratings.unhashUris(uriHashes);
+        assertEq(
+            result,
+            "place://Known Restaurant\n<unknown>\nplace://Known Restaurant\n",
+            "should handle mix of known and unknown URIs"
+        );
+    }
+
     // Wrapper function for making linter happy.
     function hash(bytes memory uri) public pure returns (bytes32 x) {
         /// forge-lint: disable-next-line(asm-keccak256)

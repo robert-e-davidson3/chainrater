@@ -85,6 +85,18 @@ contract Ratings {
         );
     }
 
+    function unhashUris(bytes[] calldata uriHashes) external view returns (string memory result) {
+        for (uint256 i = 0; i < uriHashes.length;) {
+            bytes32 uriHash = hashUri(uriHashes[i]);
+            string memory uri = uris[uriHash];
+            if (bytes(uri).length == 0) {
+                uri = "<unknown>";
+            }
+            result = string(abi.encodePacked(result, uri, "\n"));
+            unchecked { ++i; }
+        }
+    }
+
     // Add a new rating.
     // May overwrite existing rating. You get your stake back in that case.
     function submitRating(string calldata uri, uint8 score) external payable {
