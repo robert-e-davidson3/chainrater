@@ -282,6 +282,12 @@ export class UrisPage extends LitElement {
       this.unloadURIs();
     });
 
+    this.listeners.add(
+      this.blockchainService.ratings,
+      "historicalEventsLoaded",
+      () => this.loadURIs(),
+    );
+
     if (this.blockchainService.ready) this.loadURIs();
   }
 

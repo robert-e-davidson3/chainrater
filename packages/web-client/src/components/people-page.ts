@@ -325,6 +325,12 @@ export class PeoplePage extends LitElement {
       this.unloadAccounts();
     });
 
+    this.listeners.add(
+      this.blockchainService.ratings,
+      "historicalEventsLoaded",
+      () => this.loadAccounts(),
+    );
+
     if (this.blockchainService.ready) this.loadAccounts();
   }
 

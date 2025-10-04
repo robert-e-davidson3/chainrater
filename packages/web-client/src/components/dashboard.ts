@@ -257,6 +257,11 @@ export class Dashboard extends LitElement {
     this.listeners.add(this.blockchainService, "disconnected", () =>
       this.unloadDashboardData(),
     );
+    this.listeners.add(
+      this.blockchainService.ratings,
+      "historicalEventsLoaded",
+      () => this.loadDashboardData(),
+    );
   }
 
   disconnectedCallback() {

@@ -320,6 +320,12 @@ export class RatingsPage extends LitElement {
       this.unloadRatings();
     });
 
+    this.listeners.add(
+      this.blockchainService.ratings,
+      "historicalEventsLoaded",
+      () => this.loadRatings(),
+    );
+
     if (this.blockchainService.ready) this.loadRatings();
   }
 
