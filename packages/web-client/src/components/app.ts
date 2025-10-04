@@ -9,6 +9,7 @@ import "./about-page.js";
 import "./people-page.js";
 import "./uris-page.js";
 import "./ratings-page.js";
+import "./flash-notification.js";
 import {
   BlockchainService,
   type Rating,
@@ -16,6 +17,7 @@ import {
 import { blockchainServiceContext } from "../contexts/blockchain-service.context.js";
 import { Address } from "viem";
 import { ListenerManager } from "../utils/listener.utils.js";
+import { hashURI } from "../utils/blockchain.utils.js";
 
 @customElement("chain-rater")
 export class ChainRater extends LitElement {
@@ -23,6 +25,7 @@ export class ChainRater extends LitElement {
   blockchainService: BlockchainService;
 
   @state() private tabState: TabState = { type: "dashboard" };
+  @state() private flashNotification: FlashData | null = null;
 
   get activeTab(): string {
     return this.tabState.type;
@@ -46,12 +49,18 @@ export class ChainRater extends LitElement {
       this.requestUpdate();
     });
     window.addEventListener("popstate", this.handlePopState.bind(this));
+    this.addEventListener("rating-submitted", this.handleRatingSubmitted as EventListener);
+    this.addEventListener("navigate", this.handleFlashNavigate as EventListener);
+    this.addEventListener("dismissed", this.handleFlashDismissed as EventListener);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.listeners.clear();
     window.removeEventListener("popstate", this.handlePopState.bind(this));
+    this.removeEventListener("rating-submitted", this.handleRatingSubmitted as EventListener);
+    this.removeEventListener("navigate", this.handleFlashNavigate as EventListener);
+    this.removeEventListener("dismissed", this.handleFlashDismissed as EventListener);
   }
 
   static styles = css`
@@ -109,6 +118,17 @@ export class ChainRater extends LitElement {
         .accountAddress=${this.blockchainService.account}
         @tab-changed=${this.handleTabChange}
       ></header-nav>
+      ${this.flashNotification
+        ? html`
+            <flash-notification
+              .message=${this.flashNotification.message}
+              .linkText=${this.flashNotification.linkText}
+              .uri=${this.flashNotification.uri}
+              .uriHash=${this.flashNotification.uriHash}
+              .duration=${8000}
+            ></flash-notification>
+          `
+        : ""}
       ${main}
     `;
   }
@@ -212,6 +232,32 @@ export class ChainRater extends LitElement {
     this.updateTabState({
       type: "rate",
     });
+  }
+
+  handleRatingSubmitted(e: CustomEvent) {
+    const { uri } = e.detail;
+    const uriHash = hashURI(uri);
+
+    // Replace any existing flash with the new one
+    this.flashNotification = {
+      message: "Rating submitted successfully!",
+      linkText: `View ratings for ${uri}`,
+      uri,
+      uriHash,
+    };
+  }
+
+  handleFlashNavigate(e: CustomEvent) {
+    const { uri, uriHash } = e.detail;
+    this.updateTabState({
+      type: "uris",
+      uri,
+      uriHash,
+    });
+  }
+
+  handleFlashDismissed() {
+    this.flashNotification = null;
   }
 
   /**
@@ -398,3 +444,10 @@ type TabState =
   | { type: "about" }
   | { type: "myratings"; account?: Address }
   | { type: "rate"; ratingToEdit?: Rating; prefilledURI?: string };
+
+interface FlashData {
+  message: string;
+  linkText: string;
+  uri: string;
+  uriHash: string;
+}
