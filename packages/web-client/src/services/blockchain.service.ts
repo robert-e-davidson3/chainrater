@@ -216,7 +216,7 @@ export namespace Contract {
       }
 
       getUriFromHash(hash: string): string {
-        const uri = this.state.hashToURI.get(hash);
+        const uri = this.state.hashToURI.get(hash.toLowerCase());
         if (!uri) throw new NotFoundError(`URI not found for hash: ${hash}`);
         return uri;
       }
@@ -226,7 +226,7 @@ export namespace Contract {
        * Use this when you want to handle missing URIs gracefully
        */
       getUriFromHashSafe(hash: string): string | undefined {
-        return this.state.hashToURI.get(hash);
+        return this.state.hashToURI.get(hash.toLowerCase());
       }
 
       // Specifically gets ratings that are already cached (in the Ratings.state).
